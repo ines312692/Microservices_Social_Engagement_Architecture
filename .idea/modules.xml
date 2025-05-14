@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/SOA.iml" filepath="$PROJECT_DIR$/.idea/SOA.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/UserSOA.main.iml" filepath="$PROJECT_DIR$/.idea/modules/UserSOA.main.iml" />
+    </modules>
+  </component>
+</project>
