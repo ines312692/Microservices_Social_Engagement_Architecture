@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        GRADLE_USER_HOME = "${WORKSPACE}/.gradle" // Enable Gradle caching
+        GRADLE_USER_HOME = "${WORKSPACE}\\.gradle" // Enable Gradle caching
     }
     stages {
         stage('Checkout') {
@@ -13,24 +13,24 @@ pipeline {
             parallel {
                 stage('Build engagementSOA') {
                     steps {
-                        sh './gradlew :engagementSOA:build --build-cache'
+                        bat 'gradlew :engagementSOA:build --build-cache'
                     }
                 }
                 stage('Build chatSOA') {
                     steps {
-                        sh './gradlew :chatSOA:build --build-cache'
+                        bat 'gradlew :chatSOA:build --build-cache'
                     }
                 }
                 stage('Build userSOA') {
                     steps {
-                        sh './gradlew :userSOA:build --build-cache'
+                        bat 'gradlew :userSOA:build --build-cache'
                     }
                 }
             }
         }
         stage('Run Tests') {
             steps {
-                sh './gradlew test'
+                bat 'gradlew test'
             }
         }
     }
