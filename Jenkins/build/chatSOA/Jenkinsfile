@@ -40,14 +40,14 @@ pipeline {
     stage('Build Image') {
       steps {
         container('docker') {
-          dir('ChatSOA') {
+
             sh '''
               docker build \
                 --build-arg BUILDKIT_INLINE_CACHE=1 \
                 -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
                 -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest .
             '''
-          }
+
         }
       }
     }
