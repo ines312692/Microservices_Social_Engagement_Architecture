@@ -15,7 +15,7 @@ pipeline {
     DOCKER_BUILDKIT = '1'
     GRADLE_CACHE_PATH = '/mnt/gradle_cache'
     ARTIFACTS_PVC_PATH = '/mnt/artifacts'
-    WORK_DIR = "${WORKSPACE}/ChatSOA"
+    WORK_DIR = "${WORKSPACE}/chatSOA/chatSOA"
   }
 
   stages {
@@ -88,7 +88,7 @@ pipeline {
       echo "Build terminé avec succès pour ChatSOA"
     }
     failure {
-      echo "❌ Build échoué pour ChatSOA"
+      echo "Build échoué pour ChatSOA"
     }
     cleanup {
       sh 'docker logout || true'
