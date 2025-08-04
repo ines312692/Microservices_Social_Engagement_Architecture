@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  eureka-server:
+    build:
+      context: ./SOA
+      dockerfile: Dockerfile
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_REGISTER_WITH_EUREKA=false
+      - EUREKA_CLIENT_FETCH_REGISTRY=false
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    networks:
+      - soa-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # User Management Service
+  user-soa:
+    build:
+      context: ./UserSOA/UserSOA
+      dockerfile: Dockerfile
+    container_name: user-soa
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_APPLICATION_NAME=user-service
+    networks:
+      - soa-network
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    restart: on-failure
+
+  # Chat/Messaging Service
+  chat-soa:
+    build:
+      context: ./ChatSOA/chatSOA
+      dockerfile: Dockerfile
+    container_name: chat-soa
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_APPLICATION_NAME=chat-service
+    networks:
+      - soa-network
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      user-soa:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    restart: on-failure
+
+  # Social Engagement Service
+  engagement-soa:
+    build:
+      context: ./EngagementSOA
+      dockerfile: Dockerfile
+    container_name: engagement-soa
+    ports:
+      - "8083:8083"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_APPLICATION_NAME=engagement-service
+    networks:
+      - soa-network
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      user-soa:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8083/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    restart: on-failure
+
+networks:
+  soa-network:
+    driver: bridge
+    name: soa-microservices-network
+
+volumes:
+  eureka-data:
+  user-data:
+  chat-data:
+  engagement-data:
