@@ -14,4 +14,4 @@ docker build -t chat-soa ./ChatSOA/chatSOA
 echo "Building Engagement Service (EngagementSOA)..."
 docker build -t engagement-soa ./EngagementSOA
 
-echo "All services built successfully!"
+echo " All services built successfully!"
