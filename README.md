@@ -11,8 +11,6 @@ The application follows a microservices architecture pattern with the following 
 3. **ChatSOA**: Handles messaging functionality between users.
 4. **EngagementSOA**: Manages social engagement features (posts, comments, likes).
 
-![Microservices Architecture](https://via.placeholder.com/800x400?text=SOA+Microservices+Architecture)
-
 ## Project Structure
 
 ```
