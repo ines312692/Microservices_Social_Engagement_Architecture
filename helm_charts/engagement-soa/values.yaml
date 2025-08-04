@@ -1,0 +1,15 @@
+replicaCount: 1
+
+image:
+  repository: inestmimi123/k-engagementsoa
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 8083
+
+resources: {}
+
+persistence:
+  enabled: true
+  artifactClaim: artifacts-engagementsoa
