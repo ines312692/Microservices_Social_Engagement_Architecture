@@ -1,0 +1,32 @@
+# === ChatSOA ===
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: chatsoa-deployer
+  namespace: soa-microservices
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: chatsoa-deploy-role
+  namespace: soa-microservices
+rules:
+  - apiGroups: ["", "apps", "extensions", "batch"]
+    resources: ["pods", "pods/log", "services", "deployments", "replicasets", "persistentvolumeclaims", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: chatsoa-deploy-binding
+  namespace: soa-microservices
+subjects:
+  - kind: ServiceAccount
+    name: chatsoa-deployer
+    namespace: soa-microservices
+roleRef:
+  kind: Role
+  name: chatsoa-deploy-role
+  apiGroup: rbac.authorization.k8s.io
+

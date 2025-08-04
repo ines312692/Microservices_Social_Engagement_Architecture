@@ -1,0 +1,14 @@
+image:
+  repository: inestmimi123/eureka-service
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8761
+
+resources: {}
+
+persistence:
+  enabled: true
+  size: 1Gi
