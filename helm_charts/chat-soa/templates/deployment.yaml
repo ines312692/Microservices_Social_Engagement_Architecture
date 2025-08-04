@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chatsoa
+  labels:
+    app: chatsoa
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: chatsoa
+  template:
+    metadata:
+      labels:
+        app: chatsoa
+    spec:
+      containers:
+        - name: chatsoa
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: 8082
+          volumeMounts:
+            - mountPath: /tmp
+              name: chatsoa-artifacts
+      volumes:
+        - name: chatsoa-artifacts
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.artifactClaim }}

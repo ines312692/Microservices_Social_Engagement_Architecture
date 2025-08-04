@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: usersoa-deployer
+  namespace: soa-microservices
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: usersoa-deploy-role
+  namespace: soa-microservices
+rules:
+  - apiGroups: ["", "apps", "extensions", "batch"]
+    resources: ["pods", "pods/log", "services", "deployments", "replicasets", "persistentvolumeclaims", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: usersoa-deploy-binding
+  namespace: soa-microservices
+subjects:
+  - kind: ServiceAccount
+    name: usersoa-deployer
+    namespace: soa-microservices
+roleRef:
+  kind: Role
+  name: usersoa-deploy-role
+  apiGroup: rbac.authorization.k8s.io

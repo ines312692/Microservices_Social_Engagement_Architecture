@@ -47,6 +47,22 @@ SOA/
 │   ├── Dockerfile
 │   └── build.gradle.kts
 │
+├── helm_charts/                   # Helm charts for Kubernetes deployment
+│   ├── chat-soa/                  # Helm chart for ChatSOA service
+│   ├── eureka-server/             # Helm chart for Eureka Server
+│   └── user-soa/                  # Helm chart for UserSOA service
+│
+├── k8s/                           # Kubernetes configuration files
+│   ├── infrastructure/
+│   │   ├── pvc/                   # Persistent Volume Claims
+│   │   └── rbac/                  # Role-Based Access Control
+│   ├── namespace.yaml
+│   └── networkpolicy.yaml
+│
+├── Jenkins/                       # Jenkins CI/CD pipeline configurations
+│   ├── deploy/                    # Deployment pipelines
+│   └── build/                     # Build pipelines
+│
 └── README.md
 ```
 
@@ -232,6 +248,68 @@ Example of inter-service communication:
 - **EngagementSOA** retrieves user information from **UserSOA** when displaying posts and comments
 - **ChatSOA** validates user existence with **UserSOA** before allowing message sending
 - **UserSOA** notifies **EngagementSOA** when a user is deleted to clean up associated content
+
+## Kubernetes Deployment
+
+The project includes Kubernetes configuration files for deploying the microservices in a Kubernetes cluster.
+
+### Kubernetes Resources (k8s/)
+
+- **Namespace**: Dedicated namespace for the SOA microservices
+- **Network Policies**: Control traffic flow between microservices
+- **Infrastructure**:
+  - **PVC (Persistent Volume Claims)**: Storage resources for each service
+  - **RBAC (Role-Based Access Control)**: Service accounts and permissions
+
+To deploy the application to Kubernetes:
+
+```bash
+# Create namespace
+kubectl apply -f k8s/namespace.yaml
+
+# Apply network policies
+kubectl apply -f k8s/networkpolicy.yaml
+
+# Create infrastructure resources
+kubectl apply -f k8s/infrastructure/pvc/
+kubectl apply -f k8s/infrastructure/rbac/
+```
+
+## Helm Charts
+
+Helm charts are provided for simplified deployment to Kubernetes. Each microservice has its own Helm chart with customizable values.
+
+### Available Charts (helm_charts/)
+
+- **eureka-server**: Helm chart for the Eureka Server
+- **user-soa**: Helm chart for the User Service
+- **chat-soa**: Helm chart for the Chat Service
+
+To deploy using Helm:
+
+```bash
+# Add the repository (if hosted)
+helm repo add soa-repo https://your-helm-repo-url
+
+# Install each service
+helm install eureka-server helm_charts/eureka-server
+helm install user-soa helm_charts/user-soa
+helm install chat-soa helm_charts/chat-soa
+```
+
+## CI/CD Pipelines
+
+The project includes Jenkins pipeline configurations for continuous integration and deployment.
+
+### Jenkins Pipelines (Jenkins/)
+
+- **Build Pipelines**: Compile, test, and build Docker images
+- **Deploy Pipelines**: Deploy services to Kubernetes environment
+
+The Jenkins pipelines automate:
+- Code compilation and testing
+- Docker image building and pushing
+- Kubernetes deployment using Helm charts
 
 ## Development
 

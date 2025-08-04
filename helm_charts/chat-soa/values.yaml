@@ -1,0 +1,16 @@
+replicaCount: 1
+
+image:
+  repository: inestmimi123/k-chatsoa
+  pullPolicy: Always
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 8082
+
+resources: {}
+
+persistence:
+  enabled: true
+  artifactClaim: artifacts-chatsoa
