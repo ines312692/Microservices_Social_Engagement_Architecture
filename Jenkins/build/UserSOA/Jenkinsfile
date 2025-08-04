@@ -1,0 +1,97 @@
+pipeline {
+  agent {
+    kubernetes {
+      inheritFrom 'build-user'
+      defaultContainer 'docker'
+      namespace 'soa-microservices'
+      serviceAccount 'usersoa-deployer'
+    }
+  }
+
+  environment {
+    DOCKERHUB_USERNAME = 'inestmimi123'
+    DOCKERHUB_IMAGE = 'k-usersoa'
+    IMAGE_TAG = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
+    DOCKER_BUILDKIT = '1'
+    GRADLE_CACHE_PATH = '/mnt/gradle_cache'
+    ARTIFACTS_PVC_PATH = '/mnt/artifacts'
+    WORK_DIR = "${WORKSPACE}/UserSOA/UserSOA"
+  }
+
+  stages {
+    stage('Préparer Gradle Cache') {
+      steps {
+        container('docker') {
+          sh 'mkdir -p ${GRADLE_CACHE_PATH}'
+        }
+      }
+    }
+
+    stage('Docker Login') {
+      steps {
+        container('docker') {
+          withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+            sh 'echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin'
+          }
+        }
+      }
+    }
+
+    stage('Build Image') {
+          steps {
+            container('docker') {
+              dir("${WORK_DIR}") {
+                sh '''
+                  docker build \
+                    --build-arg BUILDKIT_INLINE_CACHE=1 \
+                    -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
+                    -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest .
+                '''
+              }
+            }
+          }
+        }
+
+    stage('Push Image') {
+      steps {
+        container('docker') {
+          sh '''
+            docker push ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}
+            docker push ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest
+          '''
+        }
+      }
+    }
+
+    stage('Save Artifacts') {
+      steps {
+        container('docker') {
+          sh '''
+            mkdir -p ${ARTIFACTS_PVC_PATH}/usersoa-${BUILD_NUMBER}
+            cp -r ${WORK_DIR}/* ${ARTIFACTS_PVC_PATH}/usersoa-${BUILD_NUMBER}/ || true
+          '''
+        }
+      }
+    }
+
+    stage('Nettoyage') {
+      steps {
+        container('docker') {
+          sh 'docker system prune -f || true'
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "Build terminé avec succès pour UserSOA"
+    }
+    failure {
+      echo "Build échoué pour UserSOA"
+    }
+    cleanup {
+      sh 'docker logout || true'
+    }
+  }
+}
