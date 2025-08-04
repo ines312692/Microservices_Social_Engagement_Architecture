@@ -2,7 +2,6 @@ replicaCount: 1
 
 image:
   repository: inestmimi123/k-chatsoa
-  pullPolicy: Always
   tag: "latest"
 
 service:
