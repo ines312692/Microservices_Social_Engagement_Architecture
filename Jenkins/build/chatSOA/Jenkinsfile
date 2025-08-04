@@ -38,19 +38,19 @@ pipeline {
     }
 
     stage('Build Image') {
-      steps {
-        container('docker') {
-
-            sh '''
-              docker build \
-                --build-arg BUILDKIT_INLINE_CACHE=1 \
-                -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
-                -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest .
-            '''
-
+          steps {
+            container('docker') {
+              dir("${WORK_DIR}") {
+                sh '''
+                  docker build \
+                    --build-arg BUILDKIT_INLINE_CACHE=1 \
+                    -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
+                    -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest .
+                '''
+              }
+            }
+          }
         }
-      }
-    }
 
     stage('Push Image') {
       steps {

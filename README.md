@@ -29,7 +29,7 @@ SOA/
 │   ├── Dockerfile
 │   └── build.gradle.kts
 │
-├── ChatSOA/                       # Messaging service
+├── chatSOA/                       # Messaging service
 │   ├── src/main/java/tn/ensit/soa/chatSOA/
 │   │   ├── message/               # Message handling
 │   │   └── ChatSoaApplication.java
