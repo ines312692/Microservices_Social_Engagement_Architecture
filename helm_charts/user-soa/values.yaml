@@ -1,0 +1,15 @@
+replicaCount: 1
+
+image:
+  repository: inestmimi123/k-usersoa
+  tag: "latest"
+
+service:
+  type: ClusterIP
+  port: 8081
+
+resources: {}
+
+persistence:
+  enabled: true
+  artifactClaim: artifacts-usersoa
