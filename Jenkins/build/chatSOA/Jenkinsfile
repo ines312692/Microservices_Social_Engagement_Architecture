@@ -27,71 +27,84 @@ pipeline {
       }
     }
 
-    stage('Docker Login') {
-      steps {
-        container('docker') {
-          withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-            sh 'echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin'
-          }
-        }
-      }
-    }
-
-    stage('Build Image') {
+     stage('Docker Login') {
           steps {
             container('docker') {
-              dir("${WORK_DIR}") {
-                sh '''
-                  docker build \
-                    --build-arg BUILDKIT_INLINE_CACHE=1 \
-                    -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
-                    -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest .
-                '''
+              withCredentials([usernamePassword(
+                credentialsId: 'dockerhub-creds',
+                usernameVariable: 'USERNAME',
+                passwordVariable: 'PASSWORD'
+              )]) {
+                sh 'echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin'
+              }
+            }
+          }
+     }
+
+     stage('Build and Test') {
+          parallel {
+            stage('Build Image') {
+              steps {
+                container('docker') {
+                  dir("${WORK_DIR}") {
+                    sh '''
+                      docker buildx create --use --name mybuilder || true
+                      docker buildx build \
+                        --cache-from=type=registry,ref=$DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:cache \
+                        --cache-to=type=registry,ref=$DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:cache,mode=max \
+                        --build-arg BUILDKIT_INLINE_CACHE=1 \
+                        --push \
+                        -t $DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:$IMAGE_TAG \
+                        -t $DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:latest .
+                    '''
+                  }
+                }
+              }
+            }
+
+            stage('Run Tests') {
+              steps {
+                container('docker') {
+                  dir("${WORK_DIR}") {
+                    sh 'gradle test --no-daemon --parallel'
+                  }
+                }
               }
             }
           }
         }
 
-    stage('Push Image') {
-      steps {
-        container('docker') {
-          sh '''
-            docker push ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}
-            docker push ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest
-          '''
+        stage('Save Artifacts') {
+          steps {
+            container('docker') {
+              sh '''
+                mkdir -p $ARTIFACTS_PVC_PATH/chatsoa-$BUILD_NUMBER
+                cp -r $WORK_DIR/* $ARTIFACTS_PVC_PATH/chatsoa-$BUILD_NUMBER/ || true
+              '''
+            }
+          }
+        }
+
+        stage('Nettoyage') {
+          steps {
+            container('docker') {
+              sh 'docker image prune -f || true'
+            }
+          }
+        }
+      }
+
+      post {
+        success {
+          echo "Build terminé avec succès pour ChatSOA"
+        }
+        failure {
+          echo " Build échoué pour ChatSOA"
+        }
+        cleanup {
+          container('docker') {
+            sh 'docker logout || true'
+          }
         }
       }
     }
-
-    stage('Save Artifacts') {
-      steps {
-        container('docker') {
-          sh '''
-            mkdir -p ${ARTIFACTS_PVC_PATH}/chatsoa-${BUILD_NUMBER}
-            cp -r ${WORK_DIR}/* ${ARTIFACTS_PVC_PATH}/chatsoa-${BUILD_NUMBER}/ || true
-          '''
-        }
-      }
-    }
-
-    stage('Nettoyage') {
-      steps {
-        container('docker') {
-          sh 'docker system prune -f || true'
-        }
-      }
-    }
-  }
-
-  post {
-    success {
-      echo "Build terminé avec succès pour ChatSOA"
-    }
-    failure {
-      echo "Build échoué pour ChatSOA"
-    }
-    cleanup {
-      sh 'docker logout || true'
-    }
-  }
-}
