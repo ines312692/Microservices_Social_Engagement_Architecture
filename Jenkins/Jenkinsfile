@@ -1,5 +1,12 @@
 pipeline {
-  agent any
+  agent {
+      kubernetes {
+        inheritFrom 'jenkins-master'
+        defaultContainer 'jenkins-agent'
+        namespace 'soa-microservices'
+        serviceAccount 'master-deployer'
+      }
+    }
 
   environment {
     MASTER_BUILD_JOB = 'Master-Build'
