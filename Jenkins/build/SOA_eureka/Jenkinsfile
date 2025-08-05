@@ -26,6 +26,15 @@ pipeline {
         }
       }
     }
+    stage('Build JAR') {
+          steps {
+            container('docker') {
+              dir("${WORK_DIR}") {
+                sh './gradlew build --no-daemon --build-cache --parallel'
+              }
+            }
+          }
+        }
 
     stage('Docker Login') {
       steps {
