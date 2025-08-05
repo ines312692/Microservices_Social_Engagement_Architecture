@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: engsoa
+  labels:
+    app: engsoa
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: engsoa
+  template:
+    metadata:
+      labels:
+        app: engsoa
+    spec:
+      containers:
+        - name: engsoa
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: 8083
+          volumeMounts:
+            - mountPath: /tmp
+              name: engsoa-artifacts
+      volumes:
+        - name: engsoa-artifacts
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.artifactClaim }}

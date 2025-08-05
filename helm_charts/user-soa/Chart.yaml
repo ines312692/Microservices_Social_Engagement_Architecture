@@ -1,0 +1,5 @@
+apiVersion: v2
+name: user-soa
+description: Microservice d'User
+version: 1.0.0
+appVersion: 1.0.0
