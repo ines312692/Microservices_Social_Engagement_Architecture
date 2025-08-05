@@ -1,0 +1,39 @@
+pipeline {
+  agent any
+
+  environment {
+    MASTER_BUILD_JOB = 'Master-Build'
+    MASTER_DEPLOY_JOB = 'Master-Deploy'
+  }
+
+  stages {
+    stage('Build - Master Pipeline') {
+      steps {
+        echo "Lancement du pipeline Master Build"
+        build job: "${MASTER_BUILD_JOB}", parameters: [
+          string(name: 'BUILD_NUMBER', value: "${BUILD_NUMBER}"),
+          string(name: 'GIT_COMMIT', value: "${GIT_COMMIT}")
+        ], wait: true
+      }
+    }
+
+    stage('Deploy - Master Pipeline') {
+      steps {
+        echo "Lancement du pipeline Master Deploy"
+        build job: "${MASTER_DEPLOY_JOB}", parameters: [
+          string(name: 'BUILD_NUMBER', value: "${BUILD_NUMBER}"),
+          string(name: 'GIT_COMMIT", value: "${GIT_COMMIT}")
+        ], wait: true
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "CI/CD global terminé avec succès"
+    }
+    failure {
+      echo "Erreur dans le pipeline global (build ou déploiement)"
+    }
+  }
+}
