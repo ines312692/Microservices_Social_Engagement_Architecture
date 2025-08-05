@@ -1,5 +1,3 @@
-# === EngagementSOA ===
----
 apiVersion: v1
 kind: ServiceAccount
 metadata:

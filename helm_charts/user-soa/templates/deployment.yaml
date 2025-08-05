@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: usersoa
+  labels:
+    app: usersoa
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: usersoa
+  template:
+    metadata:
+      labels:
+        app: usersoa
+    spec:
+      containers:
+        - name: usersoa
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - containerPort: 8081
+          volumeMounts:
+            - mountPath: /tmp
+              name: usersoa-artifacts
+      volumes:
+        - name: usersoa-artifacts
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.artifactClaim }}
