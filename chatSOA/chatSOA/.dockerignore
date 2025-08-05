@@ -1,3 +1,8 @@
 *.md
 build/
 src/test/
+.gradle
+.idea/
+*.iml
+*.log
+temp/
