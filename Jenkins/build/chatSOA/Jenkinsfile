@@ -18,11 +18,17 @@ pipeline {
     WORK_DIR = "${WORKSPACE}/chatSOA/chatSOA"
   }
 
+  options {
+      timestamps()
+      timeout(time: 15, unit: 'MINUTES')
+  }
+
   stages {
     stage('Préparer Gradle Cache') {
       steps {
         container('docker') {
           sh 'mkdir -p ${GRADLE_CACHE_PATH}'
+          sh 'mkdir -p ${ARTIFACTS_PVC_PATH}'
         }
       }
     }
@@ -93,7 +99,10 @@ pipeline {
     stage('Nettoyage') {
       steps {
         container('docker') {
-          sh 'docker image prune -f || true'
+         sh '''
+          docker buildx rm mybuilder || true
+          docker image prune -af || true
+            '''
         }
       }
     }
