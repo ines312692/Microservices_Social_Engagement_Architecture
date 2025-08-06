@@ -41,11 +41,20 @@ pipeline {
       }
     }
 
+    stage('Resolve Dependencies') {
+      steps {
+        container('docker') {
+          dir("${WORK_DIR}") {
+            sh './gradlew dependencies --no-daemon --build-cache --project-cache-dir=${GRADLE_CACHE_PATH}/gradle-cache'
+          }
+        }
+      }
+    }
     stage('Build and Test') {
       steps {
         container('docker') {
           dir("${WORK_DIR}") {
-            sh "./gradlew build --no-daemon --build-cache --parallel --project-cache-dir=${GRADLE_CACHE_PATH}/gradle-cache"
+            sh './gradlew build --project-cache-dir=${GRADLE_CACHE_PATH}'
           }
         }
       }

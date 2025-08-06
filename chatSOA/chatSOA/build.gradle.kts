@@ -45,4 +45,14 @@ dependencyManagement {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+
+	maxParallelForks = Runtime.getRuntime().availableProcessors()
+	filter {
+		includeTestsMatching("*Test")
+		excludeTestsMatching("*IntegrationTest")
+	}
+}
+
+tasks.bootJar {
+	archiveFileName.set("app.jar")
 }
