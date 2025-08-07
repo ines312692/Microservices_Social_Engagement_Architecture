@@ -70,13 +70,25 @@ stages {
         }
       }
     }
-    stage('Build and Test') {
+    stage('Unit Tests') {
+      steps {
+        container('gradle') {
+          dir("${WORK_DIR}") {
+            sh './gradlew test --project-cache-dir=${GRADLE_CACHE_PATH}'
+            junit allowEmptyResults: true, testResults: 'build/test-results/test/*.xml'
+          }
+        }
+      }
+    }
+
+    stage('Build ') {
       steps {
         container('docker') {
+
           dir("${WORK_DIR}") {
             sh './gradlew build --project-cache-dir=${GRADLE_CACHE_PATH}'
           }
-        }
+}
       }
     }
 
