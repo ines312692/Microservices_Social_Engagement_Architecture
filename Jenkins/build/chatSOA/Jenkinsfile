@@ -38,12 +38,15 @@ pipeline {
     }
 
     stage('Set IMAGE_TAG') {
+
       steps {
+      container('gradle') {
         script {
           def gitCommit = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
           env.IMAGE_TAG = "${env.BUILD_NUMBER}-${gitCommit}"
           echo "IMAGE_TAG set to ${env.IMAGE_TAG}"
         }
+      }
       }
     }
 
