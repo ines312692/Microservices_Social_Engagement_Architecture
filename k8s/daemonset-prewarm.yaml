@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: prewarm-chatsoa-agent
+  namespace: soa-microservices
+spec:
+  selector:
+    matchLabels:
+      app: prewarm-chatsoa-agent
+  template:
+    metadata:
+      labels:
+        app: prewarm-chatsoa-agent
+    spec:
+      containers:
+        - name: puller
+          image: docker:24.0.2-dind
+          command: ["sleep"]
+          args: ["3600"]
+      tolerations:
+        - effect: NoSchedule
+          operator: Exists

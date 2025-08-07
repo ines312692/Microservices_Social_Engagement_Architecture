@@ -19,11 +19,25 @@ pipeline {
   }
 
   options {
+      skipDefaultCheckout(true)
       timestamps()
       timeout(time: 15, unit: 'MINUTES')
   }
 
-  stages {
+
+stages {
+  stage('Checkout Last Commit Only') {
+      steps {
+        checkout([
+          $class: 'GitSCM',
+          branches: [[name: '*/ feature/otimising_jenkins_build_performance']],
+          userRemoteConfigs: [[url: 'https://github.com/ines312692/SOA.git']],
+          extensions: [
+            [$class: 'CloneOption', depth: 1, noTags: false, shallow: true]
+          ]
+        ])
+      }
+    }
     stage('Préparer Gradle Cache') {
       steps {
         container('docker') {
