@@ -79,6 +79,7 @@ pipeline {
           dir("${WORK_DIR}") {
             sh 'chmod +x ./gradlew'
             sh './gradlew build --project-cache-dir=${GRADLE_CACHE_PATH}'
+            sh 'ls -l build/libs'
           }
         }
       }

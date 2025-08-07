@@ -5,6 +5,7 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/SOA.iml" filepath="$PROJECT_DIR$/.idea/SOA.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/UserSOA.main.iml" filepath="$PROJECT_DIR$/.idea/modules/UserSOA.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/chatSOA.main.iml" filepath="$PROJECT_DIR$/.idea/modules/chatSOA.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/engagementSOA.main.iml" filepath="$PROJECT_DIR$/.idea/modules/engagementSOA.main.iml" />
     </modules>
   </component>
 </project>
