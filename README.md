@@ -2,6 +2,17 @@
 
 This project is a microservices-based architecture built using **Spring Boot** and **Spring Cloud**. It implements a social networking platform with user management, messaging, and social engagement features.
 
+## Project Overview
+
+This social networking platform allows users to:
+- Create and manage user accounts and profiles
+- Connect with other users through friend requests
+- Exchange direct messages with other users
+- Create posts, comment on posts, and like content
+- Discover other users and their content
+
+The application is designed with scalability, maintainability, and resilience in mind, following microservices best practices.
+
 ## Architecture Overview
 
 The application follows a microservices architecture pattern with the following components:
@@ -10,6 +21,58 @@ The application follows a microservices architecture pattern with the following 
 2. **UserSOA**: Manages user accounts, profiles, and friend relationships.
 3. **ChatSOA**: Handles messaging functionality between users.
 4. **EngagementSOA**: Manages social engagement features (posts, comments, likes).
+
+### Architecture Diagram
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│                 │     │                 │     │                 │
+│  Web Browser/   │     │  Mobile App     │     │  External API   │
+│  Client         │     │                 │     │  Clients        │
+│                 │     │                 │     │                 │
+└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                                 ▼
+                       ┌─────────────────┐
+                       │                 │
+                       │  API Gateway    │
+                       │  (Future)       │
+                       │                 │
+                       └────────┬────────┘
+                                │
+                                ▼
+┌───────────────────────────────────────────────────────────────┐
+│                                                               │
+│                    Eureka Server (SOA)                        │
+│                    Service Registry                           │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
+          │                  │                  │
+          ▼                  ▼                  ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│                 │  │                 │  │                 │
+│    UserSOA      │  │    ChatSOA      │  │  EngagementSOA  │
+│    (Port 8081)  │  │    (Port 8082)  │  │    (Port 8083)  │
+│                 │  │                 │  │                 │
+└────────┬────────┘  └────────┬────────┘  └────────┬────────┘
+         │                    │                    │
+         ▼                    ▼                    ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│                 │  │                 │  │                 │
+│  User Database  │  │  Chat Database  │  │ Engagement DB   │
+│                 │  │                 │  │                 │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+```
+
+### Communication Flow
+
+1. Clients (web browsers, mobile apps, external APIs) interact with the system
+2. Each microservice registers with the Eureka Server
+3. Services discover each other through Eureka for inter-service communication
+4. Each service maintains its own database for domain-specific data
+5. Services communicate via REST APIs using RestTemplate
 
 ## Project Structure
 
@@ -69,44 +132,81 @@ SOA/
 ### SOA (Eureka Server)
 - **Port**: 8761
 - **Purpose**: Service registry for service discovery
+- **Application Name**: eureka-server
+- **Configuration**:
+   - Does not register itself with Eureka (`eureka.client.register-with-eureka=false`)
+   - Fetches registry from itself (`eureka.client.fetch-registry=true`)
 - **Features**:
    - Registration of microservices
    - Service discovery for inter-service communication
+   - Health monitoring of registered services
+   - Load balancing support
 
 ### UserSOA
 - **Port**: 8081
 - **Purpose**: User management service
+- **Application Name**: UserSOA
 - **Features**:
    - User registration and authentication
-   - Profile management
-   - Friend request handling
+   - Profile management (creation, updating, retrieval)
+   - Friend request handling (sending, accepting, rejecting)
+   - User search functionality
+- **Data Model**:
+   - User: Basic user account information
+   - Profile: Extended user profile details
+   - FriendRequest: Relationship management between users
 
 ### ChatSOA
 - **Port**: 8082
 - **Purpose**: Messaging service
+- **Application Name**: chatSOA
 - **Features**:
    - Direct messaging between users
    - Message history retrieval
+   - Conversation management
+   - Read receipts
+- **Data Model**:
+   - Message: Contains sender, receiver, content, timestamp
 
 ### EngagementSOA
 - **Port**: 8083
 - **Purpose**: Social engagement service
+- **Application Name**: engagementSOA
 - **Features**:
-   - Post creation and retrieval
-   - Comment management
-   - Like functionality
+   - Post creation, editing, and retrieval
+   - Comment management on posts
+   - Like functionality for posts and comments
+   - Activity feed generation
+- **Data Model**:
+   - Post: User-generated content with text and metadata
+   - Comment: Responses to posts
+   - Like: User engagement indicator for posts and comments
 
 ## Technologies Used
 
-- **Java 17**
-- **Spring Boot 3.x**
-- **Spring Cloud Netflix Eureka** for service discovery
-- **Spring Data JPA** for data access
-- **Spring Web** for RESTful API development
-- **Gradle** for dependency management
-- **Docker** for containerization
-- **RestTemplate** for inter-service communication
-- **H2 Database** (in-memory database for development)
+### Core Technologies
+- **Java 17**: Modern Java features including records, enhanced switch expressions, and text blocks
+- **Spring Boot 3.x**: Simplified application development with auto-configuration
+- **Spring Cloud**: Ecosystem for building cloud-native applications
+  - **Spring Cloud Netflix Eureka**: Service registry for service discovery
+  - **Spring Cloud LoadBalancer**: Client-side load balancing
+- **Spring Data JPA**: Simplified data access layer with repository pattern
+- **Spring Web**: RESTful API development with controllers and request mappings
+- **Gradle**: Dependency management and build automation
+
+### Data Storage
+- **H2 Database**: In-memory database for development and testing
+- **JPA/Hibernate**: Object-relational mapping for database interactions
+
+### DevOps & Deployment
+- **Docker**: Containerization of microservices
+- **Kubernetes**: Container orchestration for production deployment
+- **Helm**: Package manager for Kubernetes applications
+- **Jenkins**: Continuous Integration and Continuous Deployment
+
+### Communication
+- **RestTemplate**: Synchronous HTTP client for inter-service communication
+- **JSON**: Data interchange format between services and clients
 
 ## Prerequisites
 
@@ -214,7 +314,7 @@ To build and run the services using Docker:
 
    Then run:
    ```bash
-   docker-compose.yml up -d
+   docker-compose up -d
    ```
 
 ## API Endpoints
@@ -324,9 +424,41 @@ Each service can be tested independently using:
 ./gradlew test
 ```
 
+## Security Considerations
+
+The current implementation focuses on functionality, but for production deployment, consider implementing:
+
+### Authentication and Authorization
+- **Spring Security**: Implement OAuth2/JWT-based authentication
+- **API Gateway**: Centralize authentication and authorization at the gateway level
+- **Role-Based Access Control**: Implement fine-grained permissions for different user types
+
+### Data Protection
+- **HTTPS**: Enable TLS/SSL for all service communications
+- **Data Encryption**: Encrypt sensitive data at rest and in transit
+- **Input Validation**: Implement thorough validation for all user inputs
+
+### Infrastructure Security
+- **Network Policies**: Restrict communication between services (already included in k8s configs)
+- **Container Security**: Use non-root users in containers (implemented in EngagementSOA)
+- **Secret Management**: Use Kubernetes Secrets or external vault solutions for credentials
+
+### Monitoring and Auditing
+- **Logging**: Implement centralized logging with ELK stack or similar
+- **Monitoring**: Set up Prometheus and Grafana for metrics collection and visualization
+- **Audit Trail**: Record all security-relevant events for compliance and forensics
+
 ## Contributing
 1. Fork the repository
 2. Create a feature branch
 3. Commit your changes
 4. Push to the branch
 5. Create a new Pull Request
+
+## Version History
+
+- **1.0.0** (2025-08-07): Initial release with core functionality
+  - Basic user management
+  - Messaging capabilities
+  - Social engagement features
+  - Docker and Kubernetes deployment support
