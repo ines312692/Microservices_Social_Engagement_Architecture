@@ -75,7 +75,7 @@ pipeline {
 
     stage('Build') {
       steps {
-        container('docker') {
+        container('gradle') {
           dir("${WORK_DIR}") {
             sh 'chmod +x ./gradlew'
             sh './gradlew build --project-cache-dir=${GRADLE_CACHE_PATH}'
