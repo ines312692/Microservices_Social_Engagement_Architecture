@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: prewarm-chatsoa-agent
+  namespace: soa-microservices
+spec:
+  selector:
+    matchLabels:
+      app: prewarm-chatsoa-agent
+  template:
+    metadata:
+      labels:
+        app: prewarm-chatsoa-agent
+    spec:
+      containers:
+        - name: puller
+          image: docker:24.0.2-dind
+          command: ["sleep"]
+          args: ["3600"]
+      tolerations:
+        - effect: NoSchedule
+          operator: Exists
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: prewarm-gradle-chatsoa
+  namespace: soa-microservices
+spec:
+  selector:
+    matchLabels:
+      app: prewarm-gradle-chatsoa
+  template:
+    metadata:
+      labels:
+        app: prewarm-gradle-chatsoa
+    spec:
+      containers:
+        - name: gradle
+          image: gradle:8.6-jdk17
+          command: [ "sleep" ]
+          args: [ "3600" ]
+          volumeMounts:
+            - mountPath: /mnt/gradle_cache
+              name: gradle-cache
+            - mountPath: /mnt/artifacts
+              name: artifacts
+      volumes:
+        - name: gradle-cache
+          persistentVolumeClaim:
+            claimName: gradle-cache-chatsoa
+        - name: artifacts
+          persistentVolumeClaim:
+            claimName: artifacts-chatsoa
+      restartPolicy: Always

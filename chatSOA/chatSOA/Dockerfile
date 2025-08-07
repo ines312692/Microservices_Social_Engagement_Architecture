@@ -1,12 +1,5 @@
-# Build stage
-FROM gradle:8.4.0-jdk17 AS builder
-WORKDIR /app
-COPY . .
-RUN gradle build --no-daemon
-
-# Run stage
 FROM eclipse-temurin:17-jre-alpine
-VOLUME /tmp
+WORKDIR /app
 EXPOSE 8082
-COPY --from=builder /app/build/libs/*.jar app.jar
-ENTRYPOINT ["java","-jar","/app.jar"]
+COPY build/libs/*.jar app.jar
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

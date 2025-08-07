@@ -1,0 +1,7 @@
+*.md
+src/test/
+.gradle
+.idea/
+*.iml
+*.log
+temp/

@@ -18,11 +18,32 @@ pipeline {
     WORK_DIR = "${WORKSPACE}/SOA"
   }
 
+  options {
+    skipDefaultCheckout(true)
+    timestamps()
+    timeout(time: 15, unit: 'MINUTES')
+  }
+
   stages {
-    stage('Préparer Gradle Cache') {
+    stage('Checkout Last Commit Only') {
+      steps {
+        checkout([
+          $class: 'GitSCM',
+          branches: [[name: '*/feature/otimising_jenkins_build_performance']],
+          userRemoteConfigs: [[url: 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git']],
+          extensions: [
+            [$class: 'CloneOption', depth: 1, noTags: false, shallow: true]
+          ]
+        ])
+      }
+    }
+
+    stage('Build and Test') {
       steps {
         container('docker') {
-          sh 'mkdir -p ${GRADLE_CACHE_PATH}'
+          dir("${WORK_DIR}") {
+            sh './gradlew build --no-daemon --build-cache --parallel --project-cache-dir=${GRADLE_CACHE_PATH}'
+          }
         }
       }
     }

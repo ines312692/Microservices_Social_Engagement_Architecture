@@ -11,18 +11,38 @@ pipeline {
   environment {
     DOCKERHUB_USERNAME = 'inestmimi123'
     DOCKERHUB_IMAGE = 'k-chatsoa'
-    IMAGE_TAG = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
+    IMAGE_TAG = "${BUILD_NUMBER}-latest"
     DOCKER_BUILDKIT = '1'
     GRADLE_CACHE_PATH = '/mnt/gradle_cache'
     ARTIFACTS_PVC_PATH = '/mnt/artifacts'
     WORK_DIR = "${WORKSPACE}/chatSOA/chatSOA"
   }
 
+  options {
+    skipDefaultCheckout(true)
+    timestamps()
+    timeout(time: 15, unit: 'MINUTES')
+  }
+
   stages {
+    stage('Checkout Last Commit Only') {
+      steps {
+        checkout([
+          $class: 'GitSCM',
+          branches: [[name: '*/feature/otimising_jenkins_build_performance']],
+          userRemoteConfigs: [[url: 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git']],
+          extensions: [
+            [$class: 'CloneOption', depth: 1, noTags: false, shallow: true]
+          ]
+        ])
+      }
+    }
+
     stage('Préparer Gradle Cache') {
       steps {
         container('docker') {
           sh 'mkdir -p ${GRADLE_CACHE_PATH}'
+          sh 'mkdir -p ${ARTIFACTS_PVC_PATH}'
         }
       }
     }
@@ -30,45 +50,62 @@ pipeline {
     stage('Docker Login') {
       steps {
         container('docker') {
-          withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+          withCredentials([usernamePassword(
+            credentialsId: 'dockerhub-creds',
+            usernameVariable: 'USERNAME',
+            passwordVariable: 'PASSWORD'
+          )]) {
             sh 'echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin'
           }
         }
       }
     }
 
-    stage('Build Image') {
-          steps {
-            container('docker') {
-              dir("${WORK_DIR}") {
-                sh '''
-                  docker build \
-                    --build-arg BUILDKIT_INLINE_CACHE=1 \
-                    -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
-                    -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest .
-                '''
-              }
-            }
+    stage('Unit Tests') {
+      steps {
+        container('gradle') {
+          dir("${WORK_DIR}") {
+            sh 'chmod +x ./gradlew'
+            sh './gradlew test --project-cache-dir=${GRADLE_CACHE_PATH}'
+
           }
         }
+      }
+    }
 
-    stage('Push Image') {
+    stage('Build') {
       steps {
-        container('docker') {
-          sh '''
-            docker push ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}
-            docker push ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest
-          '''
+        container('gradle') {
+          dir("${WORK_DIR}") {
+            sh 'chmod +x ./gradlew'
+            sh './gradlew build --project-cache-dir=${GRADLE_CACHE_PATH}'
+            sh 'ls -l build/libs'
+          }
         }
       }
+    }
+
+    stage('Build Image') {
+              steps {
+                container('docker') {
+                  dir("${WORK_DIR}") {
+                    sh '''
+                      docker build \
+                        --build-arg BUILDKIT_INLINE_CACHE=1 \
+                        -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
+                        -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest .
+                    '''
+                  }
+                }
+              }
     }
 
     stage('Save Artifacts') {
       steps {
         container('docker') {
           sh '''
-            mkdir -p ${ARTIFACTS_PVC_PATH}/chatsoa-${BUILD_NUMBER}
-            cp -r ${WORK_DIR}/* ${ARTIFACTS_PVC_PATH}/chatsoa-${BUILD_NUMBER}/ || true
+            mkdir -p $ARTIFACTS_PVC_PATH/chatsoa-$BUILD_NUMBER
+            cp -r $WORK_DIR/build/libs/*.jar $ARTIFACTS_PVC_PATH/chatsoa-$BUILD_NUMBER/ || true
           '''
         }
       }
@@ -77,7 +114,10 @@ pipeline {
     stage('Nettoyage') {
       steps {
         container('docker') {
-          sh 'docker system prune -f || true'
+          sh '''
+            docker buildx rm mybuilder || true
+            docker image prune -af || true
+          '''
         }
       }
     }
@@ -89,9 +129,6 @@ pipeline {
     }
     failure {
       echo "Build échoué pour ChatSOA"
-    }
-    cleanup {
-      sh 'docker logout || true'
     }
   }
 }

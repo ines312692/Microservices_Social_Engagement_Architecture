@@ -1,12 +1,12 @@
 pipeline {
   agent {
-      kubernetes {
-        inheritFrom 'jenkins-master'
-        defaultContainer 'jenkins-agent'
-        namespace 'soa-microservices'
-        serviceAccount 'master-deployer'
-      }
+    kubernetes {
+      inheritFrom 'jenkins-master'
+      defaultContainer 'jenkins-agent'
+      namespace 'soa-microservices'
+      serviceAccount 'master-deployer'
     }
+  }
 
   environment {
     MASTER_BUILD_JOB = 'Master-Build'
@@ -29,7 +29,7 @@ pipeline {
         echo "Lancement du pipeline Master Deploy"
         build job: "${MASTER_DEPLOY_JOB}", parameters: [
           string(name: 'BUILD_NUMBER', value: "${BUILD_NUMBER}"),
-          string(name: 'GIT_COMMIT", value: "${GIT_COMMIT}")
+          string(name: 'GIT_COMMIT', value: "${GIT_COMMIT}")
         ], wait: true
       }
     }
