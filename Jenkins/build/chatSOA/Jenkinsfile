@@ -11,7 +11,6 @@ pipeline {
   environment {
     DOCKERHUB_USERNAME = 'inestmimi123'
     DOCKERHUB_IMAGE = 'k-chatsoa'
-    IMAGE_TAG = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
     DOCKER_BUILDKIT = '1'
     GRADLE_CACHE_PATH = '/mnt/gradle_cache'
     ARTIFACTS_PVC_PATH = '/mnt/artifacts'
@@ -19,18 +18,17 @@ pipeline {
   }
 
   options {
-      skipDefaultCheckout(true)
-      timestamps()
-      timeout(time: 15, unit: 'MINUTES')
+    skipDefaultCheckout(true)
+    timestamps()
+    timeout(time: 15, unit: 'MINUTES')
   }
 
-
-stages {
-  stage('Checkout Last Commit Only') {
+  stages {
+    stage('Checkout Last Commit Only') {
       steps {
         checkout([
           $class: 'GitSCM',
-          branches: [[name: '*/ feature/otimising_jenkins_build_performance']],
+          branches: [[name: '*/feature/otimising_jenkins_build_performance']],
           userRemoteConfigs: [[url: 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git']],
           extensions: [
             [$class: 'CloneOption', depth: 1, noTags: false, shallow: true]
@@ -38,6 +36,17 @@ stages {
         ])
       }
     }
+
+    stage('Set IMAGE_TAG') {
+      steps {
+        script {
+          // Calcul dynamique de IMAGE_TAG après checkout
+          env.IMAGE_TAG = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
+          echo "IMAGE_TAG set to ${env.IMAGE_TAG}"
+        }
+      }
+    }
+
     stage('Préparer Gradle Cache') {
       steps {
         container('docker') {
@@ -70,6 +79,7 @@ stages {
         }
       }
     }
+
     stage('Unit Tests') {
       steps {
         container('gradle') {
@@ -81,14 +91,13 @@ stages {
       }
     }
 
-    stage('Build ') {
+    stage('Build') {
       steps {
         container('docker') {
-
           dir("${WORK_DIR}") {
             sh './gradlew build --project-cache-dir=${GRADLE_CACHE_PATH}'
           }
-}
+        }
       }
     }
 
@@ -125,10 +134,10 @@ stages {
     stage('Nettoyage') {
       steps {
         container('docker') {
-         sh '''
-          docker buildx rm mybuilder || true
-          docker image prune -af || true
-            '''
+          sh '''
+            docker buildx rm mybuilder || true
+            docker image prune -af || true
+          '''
         }
       }
     }
