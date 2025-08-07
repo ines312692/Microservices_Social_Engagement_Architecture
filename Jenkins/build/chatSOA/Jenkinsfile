@@ -68,8 +68,8 @@ pipeline {
         container('gradle') {
           dir("${WORK_DIR}") {
             sh 'chmod +x ./gradlew'
-            sh './gradlew test --project-cache-dir=${GRADLE_CACHE_PATH}'
-            junit allowEmptyResults: true, testResults: 'build/test-results/test/*.xml'
+             sh './gradlew test'
+
           }
         }
       }
