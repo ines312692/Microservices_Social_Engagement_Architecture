@@ -1,0 +1,25 @@
+version: '3.8'
+services:
+  jenkins:
+    build:
+      context: ../
+      dockerfile: Jenkins/docker/Dockerfile
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DOCKERHUB_USERNAME=inestmimi123
+      - DOCKERHUB_TOKEN=${DOCKERHUB_TOKEN}
+      - K8S_TOKEN=${K8S_TOKEN}
+    networks:
+      - soa-network
+
+volumes:
+  jenkins_home:
+
+networks:
+  soa-network:
+    external: true

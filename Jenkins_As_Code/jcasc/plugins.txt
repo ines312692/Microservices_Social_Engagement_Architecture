@@ -1,0 +1,28 @@
+# Core plugins
+ant:latest
+build-timeout:latest
+credentials-binding:latest
+timestamper:latest
+ws-cleanup:latest
+gradle:latest
+pipeline-stage-view:latest
+workflow-aggregator:latest
+
+# SCM
+git:latest
+github:latest
+github-branch-source:latest
+
+# Docker & Kubernetes
+docker-workflow:latest
+kubernetes:latest
+kubernetes-credentials:latest
+
+# Configuration as Code
+configuration-as-code:latest
+job-dsl:latest
+
+# Utilities
+pipeline-utility-steps:latest
+http_request:latest
+slack:latest

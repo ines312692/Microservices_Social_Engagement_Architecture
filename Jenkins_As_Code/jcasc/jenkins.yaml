@@ -1,0 +1,124 @@
+jenkins:
+  systemMessage: "Jenkins SOA Microservices - Managed by Configuration as Code"
+
+  nodes:
+    - permanent:
+        name: "k8s-agent"
+        nodeDescription: "Kubernetes Agent for SOA Builds"
+        remoteFS: "/home/jenkins"
+
+  numExecutors: 2
+
+  clouds:
+    - kubernetes:
+        name: "soa-k8s-cloud"
+        serverUrl: "https://kubernetes.default.svc.cluster.local"
+        namespace: "soa-microservices"
+        credentialsId: "k8s-service-account"
+        jenkinsTunnel: "jenkins-agent:50000"
+        jenkinsUrl: "http://jenkins:8080"
+
+        templates:
+          - name: "build-chat"
+            namespace: "soa-microservices"
+            serviceAccount: "chatsoa-deployer"
+            containers:
+              - name: "gradle"
+                image: "gradle:8.5-jdk17-alpine"
+                ttyEnabled: true
+                command: "sleep"
+                args: "infinity"
+                workingDir: "/home/jenkins/agent"
+                resourceRequestCpu: "500m"
+                resourceRequestMemory: "1Gi"
+                resourceLimitCpu: "1000m"
+                resourceLimitMemory: "2Gi"
+
+              - name: "docker"
+                image: "docker:24-dind"
+                ttyEnabled: true
+                privileged: true
+                workingDir: "/home/jenkins/agent"
+                resourceRequestCpu: "500m"
+                resourceRequestMemory: "1Gi"
+                resourceLimitCpu: "2000m"
+                resourceLimitMemory: "4Gi"
+
+          - name: "build-user"
+            # Configuration similaire pour UserSOA
+
+          - name: "build-engagement"
+            # Configuration similaire pour EngagementSOA
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: "dockerhub-creds"
+              username: "${DOCKERHUB_USERNAME}"
+              password: "${DOCKERHUB_TOKEN}"
+              description: "DockerHub credentials"
+
+          - string:
+              scope: GLOBAL
+              id: "k8s-token"
+              secret: "${K8S_TOKEN}"
+              description: "Kubernetes service account token"
+
+unclassified:
+  location:
+    url: "http://jenkins.soa-microservices.local:8080/"
+    adminAddress: "admin@soa-microservices.local"
+
+  globalLibraries:
+    libraries:
+      - name: "soa-shared-lib"
+        defaultVersion: "main"
+        retriever:
+          modernSCM:
+            scm:
+              git:
+                remote: "https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git"
+                credentialsId: "github-creds"
+
+  buildDiscarders:
+    configuredBuildDiscarders:
+      - "logRotator":
+          artifactDaysToKeepStr: "30"
+          artifactNumToKeepStr: "10"
+          daysToKeepStr: "90"
+          numToKeepStr: "50"
+
+tool:
+  git:
+    installations:
+      - name: "Default"
+        home: "git"
+
+  gradle:
+    installations:
+      - name: "Gradle-8.5"
+        home: "/opt/gradle"
+        properties:
+          - installSource:
+              installers:
+                - gradleInstaller:
+                    id: "8.5"
+
+security:
+  remotingCLI:
+    enabled: false
+
+  sSHD:
+    port: -1
+
+  authorizationStrategy:
+    projectMatrix:
+      permissions:
+        - "Overall/Administer:admin"
+        - "Overall/Read:authenticated"
+        - "Job/Build:authenticated"
+        - "Job/Read:authenticated"
+        - "Job/Workspace:authenticated"
