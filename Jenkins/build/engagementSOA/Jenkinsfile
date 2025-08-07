@@ -18,25 +18,35 @@ pipeline {
     WORK_DIR = "${WORKSPACE}/engagementSOA"
   }
 
+  options {
+    skipDefaultCheckout(true)
+    timestamps()
+    timeout(time: 15, unit: 'MINUTES')
+  }
+
   stages {
-    stage('Préparer Gradle Cache') {
+    stage('Checkout Last Commit Only') {
       steps {
-        container('docker') {
-          sh 'mkdir -p ${GRADLE_CACHE_PATH}'
-        }
+        checkout([
+          $class: 'GitSCM',
+          branches: [[name: '*/feature/otimising_jenkins_build_performance']],
+          userRemoteConfigs: [[url: 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git']],
+          extensions: [
+            [$class: 'CloneOption', depth: 1, noTags: false, shallow: true]
+          ]
+        ])
       }
     }
 
-    stage('Build JAR') {
+    stage('Build and Test') {
       steps {
         container('docker') {
           dir("${WORK_DIR}") {
-            sh './gradlew build --no-daemon --build-cache --parallel'
+            sh './gradlew build --no-daemon --build-cache --parallel --project-cache-dir=${GRADLE_CACHE_PATH}'
           }
         }
       }
     }
-
 
     stage('Docker Login') {
       steps {
@@ -48,28 +58,21 @@ pipeline {
       }
     }
 
-    stage('Build Image') {
-          steps {
-            container('docker') {
-              dir("${WORK_DIR}") {
-                sh '''
-                  docker build \
-                    --build-arg BUILDKIT_INLINE_CACHE=1 \
-                    -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
-                    -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest .
-                '''
-              }
-            }
-          }
-        }
-
-    stage('Push Image') {
+    stage('Build and Push Image with Cache') {
       steps {
         container('docker') {
-          sh '''
-            docker push ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}
-            docker push ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest
-          '''
+          dir("${WORK_DIR}") {
+            sh '''
+              docker buildx create --use --name mybuilder || true
+              docker buildx build \
+                --cache-from=type=registry,ref=$DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:cache \
+                --cache-to=type=registry,ref=$DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:cache,mode=max \
+                --build-arg BUILDKIT_INLINE_CACHE=1 \
+                --push \
+                -t $DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:$IMAGE_TAG \
+                -t $DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:latest .
+            '''
+          }
         }
       }
     }
