@@ -35,14 +35,6 @@ The application follows a microservices architecture pattern with the following 
          └───────────────────────┼───────────────────────┘
                                  │
                                  ▼
-                       ┌─────────────────┐
-                       │                 │
-                       │  API Gateway    │
-                       │  (Future)       │
-                       │                 │
-                       └────────┬────────┘
-                                │
-                                ▼
 ┌───────────────────────────────────────────────────────────────┐
 │                                                               │
 │                    Eureka Server (SOA)                        │
@@ -430,7 +422,6 @@ The current implementation focuses on functionality, but for production deployme
 
 ### Authentication and Authorization
 - **Spring Security**: Implement OAuth2/JWT-based authentication
-- **API Gateway**: Centralize authentication and authorization at the gateway level
 - **Role-Based Access Control**: Implement fine-grained permissions for different user types
 
 ### Data Protection
