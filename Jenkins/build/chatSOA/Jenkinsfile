@@ -97,7 +97,7 @@ pipeline {
                   }
                 }
               }
-            }
+    }
 
     stage('Save Artifacts') {
       steps {

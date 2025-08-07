@@ -53,6 +53,3 @@ tasks.withType<Test> {
 	}
 }
 
-tasks.bootJar {
-	archiveFileName.set("app.jar")
-}
