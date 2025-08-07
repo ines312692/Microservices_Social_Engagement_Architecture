@@ -141,10 +141,5 @@ stages {
     failure {
       echo "Build échoué pour ChatSOA"
     }
-    cleanup {
-      container('docker') {
-        sh 'docker logout || true'
-      }
-    }
   }
 }
