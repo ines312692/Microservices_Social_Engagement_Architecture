@@ -40,8 +40,8 @@ pipeline {
     stage('Set IMAGE_TAG') {
       steps {
         script {
-          // Calcul dynamique de IMAGE_TAG après checkout
-          env.IMAGE_TAG = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
+          def gitCommit = sh(script: 'git rev-parse --short=7 HEAD', returnStdout: true).trim()
+          env.IMAGE_TAG = "${env.BUILD_NUMBER}-${gitCommit}"
           echo "IMAGE_TAG set to ${env.IMAGE_TAG}"
         }
       }
