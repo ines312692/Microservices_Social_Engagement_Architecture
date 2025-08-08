@@ -434,11 +434,6 @@ The current implementation focuses on functionality, but for production deployme
 - **Container Security**: Use non-root users in containers (implemented in EngagementSOA)
 - **Secret Management**: Use Kubernetes Secrets or external vault solutions for credentials
 
-### Monitoring and Auditing
-- **Logging**: Implement centralized logging with ELK stack or similar
-- **Monitoring**: Set up Prometheus and Grafana for metrics collection and visualization
-- **Audit Trail**: Record all security-relevant events for compliance and forensics
-
 ## Contributing
 1. Fork the repository
 2. Create a feature branch
