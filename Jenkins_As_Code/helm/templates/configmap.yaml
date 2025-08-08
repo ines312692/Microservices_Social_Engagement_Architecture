@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-casc-configs
+  namespace: soa-microservices
+data:
+  jenkins.yaml: |
+    {{ .Files.Get "config/jenkins.yaml" | nindent 4 }}
+  credentials.yaml: |
+    {{ .Files.Get "config/credentials.yaml" | nindent 4 }}

@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: build-eng
+  namespace: soa-microservices
+  labels:
+    jenkins: slave
+    app: build-eng
+spec:
+  serviceAccountName: engsoa-deployer
+  containers:
+    - name: docker
+      image: docker:24.0.2-dind
+      command: ["sleep"]
+      args: ["9999999"]
+      tty: true
+      volumeMounts:
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
+        - name: gradle-cache
+          mountPath: /mnt/gradle_cache
+        - name: artifacts
+          mountPath: /mnt/artifacts
+    - name: gradle
+      image: gradle:8.6-jdk17
+      command: ["sleep"]
+      args: ["9999999"]
+      tty: true
+  volumes:
+    - name: docker-sock
+      hostPath:
+        path: /var/run/docker.sock
+    - name: gradle-cache
+      persistentVolumeClaim:
+        claimName: gradle-cache-engsoa
+    - name: artifacts
+      persistentVolumeClaim:
+        claimName: artifacts-engsoa
