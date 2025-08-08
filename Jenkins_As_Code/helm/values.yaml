@@ -1,0 +1,19 @@
+replicaCount: 1
+image:
+  repository: jenkins/jenkins
+  tag: lts
+  pullPolicy: IfNotPresent
+service:
+  type: ClusterIP
+  port: 8080
+persistence:
+  enabled: true
+  storageClass: ""
+  size: 8Gi
+casc:
+  configPath: /var/jenkins_home/casc_configs
+  configs:
+    - name: jenkins
+      path: config/jenkins.yaml
+    - name: credentials
+      path: config/credentials.yaml
