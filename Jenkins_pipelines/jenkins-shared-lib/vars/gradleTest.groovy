@@ -1,7 +1,4 @@
 def call(String workDir, String gradleCachePath) {
-    when {
-        changeset "**/*.java"
-    }
     try {
         container('gradle') {
             dir(workDir) {
