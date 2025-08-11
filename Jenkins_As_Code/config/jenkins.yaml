@@ -11,7 +11,18 @@ jenkins:
   authorizationStrategy:
     loggedInUsersCanDoAnything:
       allowAnonymousRead: false
-
+  globalLibraries:
+    libraries:
+      - name: "soa-shared-lib"
+        retriever:
+          modernSCM:
+            scm:
+              git:
+                remote: "https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git"
+                credentialsId: "github-creds"
+            libraryBranch: "main"
+        defaultVersion: "main"
+        implicit: true
 clouds:
   - kubernetes:
       name: kubernetes
