@@ -19,8 +19,7 @@ jenkins:
             scm:
               git:
                 remote: "https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git"
-                credentialsId: "github-creds"
-            libraryBranch: "main"
+            libraryBranch: "feature/Jenkins_as_Code"
         defaultVersion: "main"
         implicit: true
 clouds:
