@@ -102,6 +102,7 @@ SOA/
 │
 ├── helm_charts/                   # Helm charts for Kubernetes deployment
 │   ├── chat-soa/                  # Helm chart for ChatSOA service
+│   ├── engagement-soa/            # Helm chart for EngagementSOA service
 │   ├── eureka-server/             # Helm chart for Eureka Server
 │   └── user-soa/                  # Helm chart for UserSOA service
 │
@@ -112,9 +113,17 @@ SOA/
 │   ├── namespace.yaml
 │   └── networkpolicy.yaml
 │
-├── Jenkins/                       # Jenkins CI/CD pipeline configurations
-│   ├── deploy/                    # Deployment pipelines
-│   └── build/                     # Build pipelines
+├── Jenkins_pipelines/             # Jenkins CI/CD pipeline configurations
+│   ├── build/                     # Build pipelines for each service
+│   │   ├── SOA_eureka/            # Eureka Server build pipeline
+│   │   └── UserSOA/               # UserSOA build pipeline
+│   ├── deploy/                    # Deployment pipelines for each service
+│   │   ├── SOA_eureka/            # Eureka Server deployment pipeline
+│   │   ├── UserSOA/               # UserSOA deployment pipeline
+│   │   ├── chatSOA/               # ChatSOA deployment pipeline
+│   │   └── engagementSOA/         # EngagementSOA deployment pipeline
+│   └── jenkins-shared-lib/        # Shared Jenkins pipeline libraries
+│       └── vars/                  # Reusable pipeline functions
 │
 └── README.md
 ```
@@ -391,15 +400,47 @@ helm install chat-soa helm_charts/chat-soa
 
 The project includes Jenkins pipeline configurations for continuous integration and deployment.
 
-### Jenkins Pipelines (Jenkins/)
+### Jenkins Pipelines (Jenkins_pipelines/)
 
 - **Build Pipelines**: Compile, test, and build Docker images
 - **Deploy Pipelines**: Deploy services to Kubernetes environment
+- **Shared Libraries**: Reusable pipeline components
 
 The Jenkins pipelines automate:
 - Code compilation and testing
-- Docker image building and pushing
+- Docker image building and pushing with caching
+- Artifact preservation
 - Kubernetes deployment using Helm charts
+
+### Pipeline Structure
+
+Each service has its own Jenkinsfile with the following stages:
+1. **Checkout**: Shallow clone of the repository for improved performance
+2. **Unit Tests**: Run tests in parallel with conditional execution based on file changes
+3. **Build**: Compile the application with Gradle caching for faster builds
+4. **Docker Login**: Authenticate with Docker registry
+5. **Build and Push Image**: Create and push Docker images with layer caching
+6. **Save Artifacts**: Preserve build artifacts for future reference
+7. **Cleanup**: Remove unused Docker resources
+
+### Kubernetes Integration
+
+The pipelines run on Kubernetes pods with:
+- Service-specific pod templates
+- Dedicated service accounts with appropriate permissions
+- Persistent volume claims for caching and artifacts
+- Multiple containers for different build tasks (Docker, Gradle)
+
+### Shared Libraries
+
+The project uses Jenkins shared libraries to promote code reuse:
+- `checkoutCode`: Standardized Git checkout
+- `gradleBuild`: Gradle build with caching
+- `gradleTest`: Test execution with parallel processing
+- `dockerLogin`: Secure Docker registry authentication
+- `pushDockerImage`: Optimized image building with layer caching
+- `saveArtifacts`: Consistent artifact preservation
+- `cleanupDocker`: Resource cleanup
 
 ## Development
 
@@ -443,8 +484,9 @@ The current implementation focuses on functionality, but for production deployme
 
 ## Version History
 
-- **1.0.0** (2025-08-07): Initial release with core functionality
-  - Basic user management
-  - Messaging capabilities
-  - Social engagement features
-  - Docker and Kubernetes deployment support
+- **1.0.1** (2025-08-11): Enhanced CI/CD pipeline implementation
+  - Added Jenkins pipeline configurations for all services
+  - Implemented shared pipeline libraries for code reuse
+  - Optimized build process with caching and parallel execution
+  - Improved Docker image building with layer caching
+
