@@ -27,22 +27,36 @@ pipeline {
   stages {
     stage('Checkout Last Commit Only') {
       steps {
-        checkout([
-          $class: 'GitSCM',
-          branches: [[name: '*/feature/otimising_jenkins_build_performance']],
-          userRemoteConfigs: [[url: 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git']],
-          extensions: [
-            [$class: 'CloneOption', depth: 1, noTags: false, shallow: true]
-          ]
-        ])
+        script {
+          try {
+            checkout([
+              $class: 'GitSCM',
+              branches: [[name: '*/feature/otimising_jenkins_build_performance']],
+              userRemoteConfigs: [[url: 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git']],
+              extensions: [
+                [$class: 'CloneOption', depth: 1, noTags: false, shallow: true]
+              ]
+            ])
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Checkout Last Commit Only' : ${e.message}"
+            error("Échec du checkout Git")
+          }
+        }
       }
     }
 
     stage('Build and Test') {
       steps {
-        container('docker') {
-          dir("${WORK_DIR}") {
-            sh './gradlew build --no-daemon --build-cache --parallel --project-cache-dir=${GRADLE_CACHE_PATH}'
+        script {
+          try {
+            container('docker') {
+              dir("${WORK_DIR}") {
+                sh './gradlew build --no-daemon --build-cache --parallel --project-cache-dir=${GRADLE_CACHE_PATH}'
+              }
+            }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Build and Test' : ${e.message}"
+            error("Échec de la compilation et des tests")
           }
         }
       }
@@ -50,9 +64,16 @@ pipeline {
 
     stage('Docker Login') {
       steps {
-        container('docker') {
-          withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-            sh 'echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin'
+        script {
+          try {
+            container('docker') {
+              withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                sh 'echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin'
+              }
+            }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Docker Login' : ${e.message}"
+            error("Échec login Docker")
           }
         }
       }
@@ -60,18 +81,25 @@ pipeline {
 
     stage('Build and Push Image with Cache') {
       steps {
-        container('docker') {
-          dir("${WORK_DIR}") {
-            sh '''
-              docker buildx create --use --name mybuilder || true
-              docker buildx build \
-                --cache-from=type=registry,ref=$DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:cache \
-                --cache-to=type=registry,ref=$DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:cache,mode=max \
-                --build-arg BUILDKIT_INLINE_CACHE=1 \
-                --push \
-                -t $DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:$IMAGE_TAG \
-                -t $DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:latest .
-            '''
+        script {
+          try {
+            container('docker') {
+              dir("${WORK_DIR}") {
+                sh '''
+                  docker buildx create --use --name mybuilder || true
+                  docker buildx build \
+                    --cache-from=type=registry,ref=$DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:cache \
+                    --cache-to=type=registry,ref=$DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:cache,mode=max \
+                    --build-arg BUILDKIT_INLINE_CACHE=1 \
+                    --push \
+                    -t $DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:$IMAGE_TAG \
+                    -t $DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:latest .
+                '''
+              }
+            }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Build and Push Image with Cache' : ${e.message}"
+            error("Échec de la construction et push de l'image Docker")
           }
         }
       }
@@ -79,19 +107,33 @@ pipeline {
 
     stage('Save Artifacts') {
       steps {
-        container('docker') {
-          sh '''
-            mkdir -p ${ARTIFACTS_PVC_PATH}/usersoa-${BUILD_NUMBER}
-            cp -r ${WORK_DIR}/* ${ARTIFACTS_PVC_PATH}/usersoa-${BUILD_NUMBER}/ || true
-          '''
+        script {
+          try {
+            container('docker') {
+              sh '''
+                mkdir -p ${ARTIFACTS_PVC_PATH}/usersoa-${BUILD_NUMBER}
+                cp -r ${WORK_DIR}/* ${ARTIFACTS_PVC_PATH}/usersoa-${BUILD_NUMBER}/ || true
+              '''
+            }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Save Artifacts' : ${e.message}"
+            error("Échec de la sauvegarde des artefacts")
+          }
         }
       }
     }
 
     stage('Nettoyage') {
       steps {
-        container('docker') {
-          sh 'docker system prune -f || true'
+        script {
+          try {
+            container('docker') {
+              sh 'docker system prune -f || true'
+            }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Nettoyage' : ${e.message}"
+            error("Échec lors du nettoyage")
+          }
         }
       }
     }
