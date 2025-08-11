@@ -1,0 +1,89 @@
+@Library('soa-shared-lib') _
+
+pipeline {
+  agent {
+    kubernetes {
+      inheritFrom 'build-chat'
+      defaultContainer 'docker'
+      namespace 'soa-microservices'
+      serviceAccount 'chatsoa-deployer'
+    }
+  }
+
+  environment {
+    DOCKERHUB_USERNAME = 'inestmimi123'
+    DOCKERHUB_IMAGE = 'k-chatsoa'
+    IMAGE_TAG = "${BUILD_NUMBER}-latest"
+    DOCKER_BUILDKIT = '1'
+    GRADLE_CACHE_PATH = '/mnt/gradle_cache'
+    ARTIFACTS_PVC_PATH = '/mnt/artifacts'
+    WORK_DIR = "${WORKSPACE}/chatSOA/chatSOA"
+  }
+
+  options {
+    skipDefaultCheckout(true)
+    timestamps()
+    timeout(time: 15, unit: 'MINUTES')
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkoutCode(
+          branch: 'feature/otimising_jenkins_build_performance',
+          gitUrl: 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
+        )
+      }
+    }
+
+    stage('Docker Login') {
+      steps {
+        dockerLogin('dockerhub-creds')
+      }
+    }
+
+    stage('Unit Tests') {
+      steps {
+        gradleTest(WORK_DIR, GRADLE_CACHE_PATH)
+      }
+    }
+
+    stage('Build') {
+      steps {
+        gradleBuild(WORK_DIR, GRADLE_CACHE_PATH)
+      }
+    }
+
+    stage('Build & Push Image') {
+      steps {
+        pushDockerImage([
+          workDir: WORK_DIR,
+          dockerHubUsername: DOCKERHUB_USERNAME,
+          dockerHubImage: DOCKERHUB_IMAGE,
+          imageTag: IMAGE_TAG
+        ])
+      }
+    }
+
+    stage('Save Artifacts') {
+      steps {
+        saveArtifacts(WORK_DIR, ARTIFACTS_PVC_PATH, BUILD_NUMBER, 'chatsoa')
+      }
+    }
+
+    stage('Cleanup') {
+      steps {
+        cleanupDocker()
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "Build terminé avec succès pour ChatSOA"
+    }
+    failure {
+      echo "Build échoué pour ChatSOA"
+    }
+  }
+}
