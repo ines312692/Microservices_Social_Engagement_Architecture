@@ -21,12 +21,19 @@ pipeline {
     stage('Helm Upgrade') {
       steps {
         container('helm') {
-          sh """
-            helm upgrade --install ${RELEASE_NAME} ${CHART_PATH} \
-              --namespace ${NAMESPACE} \
-              --set image.repository=${DOCKERHUB_USERNAME}/${IMAGE_NAME} \
-              --set image.tag=${IMAGE_TAG}
-          """
+          script {
+            try {
+              sh """
+                helm upgrade --install ${RELEASE_NAME} ${CHART_PATH} \
+                  --namespace ${NAMESPACE} \
+                  --set image.repository=${DOCKERHUB_USERNAME}/${IMAGE_NAME} \
+                  --set image.tag=${IMAGE_TAG}
+              """
+            } catch (Exception e) {
+              echo "Erreur dans le stage 'Helm Upgrade' : ${e.message}"
+              error("Échec du déploiement Helm")
+            }
+          }
         }
       }
     }
