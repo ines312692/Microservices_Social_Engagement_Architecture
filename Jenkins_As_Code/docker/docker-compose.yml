@@ -1,0 +1,18 @@
+version: '3.8'
+services:
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins-home:/var/jenkins_home
+    environment:
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME}
+      - DOCKERHUB_PASSWORD=${DOCKERHUB_PASSWORD}
+      - KUBERNETES_CONFIG=${KUBERNETES_CONFIG}
+volumes:
+  jenkins-home:

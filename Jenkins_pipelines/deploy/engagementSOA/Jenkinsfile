@@ -1,0 +1,50 @@
+pipeline {
+  agent {
+    kubernetes {
+      inheritFrom 'deploy-chat'
+      defaultContainer 'helm'
+      namespace 'soa-microservices'
+      serviceAccount 'k-engsoa-deployer'
+    }
+  }
+
+  environment {
+    RELEASE_NAME = 'engsoa'
+    CHART_PATH = 'helm_charts/engagementSOA-soa'
+    NAMESPACE = 'soa-microservices'
+    IMAGE_TAG = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
+    DOCKERHUB_USERNAME = 'inestmimi123'
+    IMAGE_NAME = 'k-engsoa'
+  }
+
+  stages {
+    stage('Helm Upgrade') {
+      steps {
+        container('helm') {
+          script {
+            try {
+              sh """
+                helm upgrade --install ${RELEASE_NAME} ${CHART_PATH} \
+                  --namespace ${NAMESPACE} \
+                  --set image.repository=${DOCKERHUB_USERNAME}/${IMAGE_NAME} \
+                  --set image.tag=${IMAGE_TAG}
+              """
+            } catch (Exception e) {
+              echo "Erreur dans le stage 'Helm Upgrade' : ${e.message}"
+              error("Échec du déploiement Helm")
+            }
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "Déploiement réussi pour EngagementSOA"
+    }
+    failure {
+      echo "Échec du déploiement pour EngagementSOA"
+    }
+  }
+}

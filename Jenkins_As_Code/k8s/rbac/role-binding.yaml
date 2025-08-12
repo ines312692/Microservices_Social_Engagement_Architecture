@@ -1,0 +1,27 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jenkins-agent
+  namespace: soa-microservices
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "pods/exec"]
+    verbs: ["create", "delete", "get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins-agent-binding
+  namespace: soa-microservices
+subjects:
+  - kind: ServiceAccount
+    name: chatsoa-deployer
+    namespace: soa-microservices
+  - kind: ServiceAccount
+    name: engsoa-deployer
+    namespace: soa-microservices
+  # Add other service accounts
+roleRef:
+  kind: Role
+  name: jenkins-agent
+  apiGroup: rbac.authorization.k8s.io

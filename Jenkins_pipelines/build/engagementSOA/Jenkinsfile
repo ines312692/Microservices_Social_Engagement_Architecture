@@ -1,0 +1,181 @@
+pipeline {
+  agent {
+    kubernetes {
+      inheritFrom 'build-eng'
+      defaultContainer 'docker'
+      namespace 'soa-microservices'
+      serviceAccount 'engsoa-deployer'
+    }
+  }
+
+  environment {
+    DOCKERHUB_USERNAME = 'inestmimi123'
+    DOCKERHUB_IMAGE = 'k-engsoa'
+    IMAGE_TAG = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
+    DOCKER_BUILDKIT = '1'
+    GRADLE_CACHE_PATH = '/mnt/gradle_cache'
+    ARTIFACTS_PVC_PATH = '/mnt/artifacts'
+    WORK_DIR = "${WORKSPACE}/engagementSOA"
+  }
+
+  options {
+    skipDefaultCheckout(true)
+    timestamps()
+    timeout(time: 15, unit: 'MINUTES')
+  }
+
+  stages {
+
+    stage('Checkout Last Commit Only') {
+      steps {
+        script {
+          try {
+            checkout([
+              $class: 'GitSCM',
+              branches: [[name: '*/feature/otimising_jenkins_build_performance']],
+              userRemoteConfigs: [[url: 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git']],
+              extensions: [
+                [$class: 'CloneOption', depth: 1, noTags: false, shallow: true]
+              ]
+            ])
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Checkout Last Commit Only' : ${e.message}"
+            error("Échec du checkout Git")
+          }
+        }
+      }
+    }
+
+    stage('Unit Tests') {
+      when {
+        changeset "**/*.java"
+      }
+      steps {
+        script {
+          try {
+            container('gradle') {
+              dir("${WORK_DIR}") {
+                sh 'chmod +x ./gradlew'
+                sh './gradlew test --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}'
+              }
+            }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Unit Tests' : ${e.message}"
+            error("Échec des tests unitaires")
+          }
+        }
+      }
+    }
+
+    stage('Build') {
+      steps {
+        script {
+          try {
+            container('gradle') {
+              dir("${WORK_DIR}") {
+                sh '''
+                  chmod +x ./gradlew
+                  export GRADLE_USER_HOME=${GRADLE_CACHE_PATH}
+                  ./gradlew build --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}
+                  ls -l build/libs
+                  ls -l /mnt/gradle_cache/wrapper/dists || echo "Dossier vide"
+                '''
+              }
+            }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Build' : ${e.message}"
+            error("Échec de la compilation")
+          }
+        }
+      }
+    }
+
+    stage('Docker Login') {
+      steps {
+        script {
+          try {
+            container('docker') {
+              withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                sh 'echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin'
+              }
+            }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Docker Login' : ${e.message}"
+            error("Échec login Docker")
+          }
+        }
+      }
+    }
+
+    stage('Build and Push Image with Cache') {
+      steps {
+        script {
+          try {
+            container('docker') {
+              dir("${WORK_DIR}") {
+                sh '''
+                  docker buildx create --use --name mybuilder || true
+                  docker buildx build \
+                    --cache-from=type=registry,ref=$DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:cache \
+                    --cache-to=type=registry,ref=$DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:cache,mode=max \
+                    --build-arg BUILDKIT_INLINE_CACHE=1 \
+                    --push \
+                    -t $DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:$IMAGE_TAG \
+                    -t $DOCKERHUB_USERNAME/$DOCKERHUB_IMAGE:latest .
+                '''
+              }
+            }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Build and Push Image with Cache' : ${e.message}"
+            error("Échec de la construction et push de l'image Docker")
+          }
+        }
+      }
+    }
+
+    stage('Save Artifacts') {
+      steps {
+        script {
+          try {
+            container('docker') {
+              sh '''
+                mkdir -p ${ARTIFACTS_PVC_PATH}/engsoa-${BUILD_NUMBER}
+                cp -r ${WORK_DIR}/* ${ARTIFACTS_PVC_PATH}/engsoa-${BUILD_NUMBER}/ || true
+              '''
+            }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Save Artifacts' : ${e.message}"
+            error("Échec de la sauvegarde des artefacts")
+          }
+        }
+      }
+    }
+
+    stage('Nettoyage') {
+      steps {
+        script {
+          try {
+            container('docker') {
+              sh 'docker system prune -f || true'
+            }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Nettoyage' : ${e.message}"
+            error("Échec lors du nettoyage")
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "Build terminé avec succès pour EngagementSOA"
+    }
+    failure {
+      echo "Build échoué pour EngagementSOA"
+    }
+    cleanup {
+      sh 'docker logout || true'
+    }
+  }
+}
