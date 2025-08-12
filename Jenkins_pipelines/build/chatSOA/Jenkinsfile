@@ -16,6 +16,7 @@ pipeline {
     GRADLE_CACHE_PATH = '/mnt/gradle_cache'
     ARTIFACTS_PVC_PATH = '/mnt/artifacts'
     WORK_DIR = "${WORKSPACE}/chatSOA/chatSOA"
+    SONARQUBE_SERVER = 'sonarqube-local'
   }
 
   options {
@@ -25,173 +26,161 @@ pipeline {
   }
 
   stages {
-      stage('Checkout Last Commit Only') {
-        steps {
-          script {
-            try {
-              checkout([
-                $class: 'GitSCM',
-                branches: [[name: '*/feature/otimising_jenkins_build_performance']],
-                userRemoteConfigs: [[url: 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git']],
-                extensions: [
-                  [$class: 'CloneOption', depth: 1, noTags: false, shallow: true]
-                ]
-              ])
-            } catch (Exception e) {
-              echo "Erreur dans le stage 'Checkout Last Commit Only' : ${e.message}"
-              error("Échec du checkout Git")
-            }
+    stage('Checkout') {
+      steps {
+        script {
+          try {
+            checkout([
+              $class: 'GitSCM',
+              branches: [[name: '*/feature/restructure-pipeline']],
+              userRemoteConfigs: [[url: 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git']],
+              extensions: [
+                [$class: 'CloneOption', depth: 1, noTags: false, shallow: true]
+              ]
+            ])
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Checkout' : ${e.message}"
+            error("Échec du checkout Git")
           }
         }
       }
+    }
 
-      stage('Préparer Gradle Cache') {
-        steps {
-          script {
-            try {
-              container('docker') {
-                sh 'mkdir -p ${GRADLE_CACHE_PATH}'
-                sh 'mkdir -p ${ARTIFACTS_PVC_PATH}'
-              }
-            } catch (Exception e) {
-              echo "Erreur dans le stage 'Préparer Gradle Cache' : ${e.message}"
-              error("Échec préparation cache Gradle")
-            }
-          }
-        }
-      }
-
-      stage('Docker Login') {
-        steps {
-          script {
-            try {
-              container('docker') {
-                withCredentials([usernamePassword(
-                  credentialsId: 'dockerhub-creds',
-                  usernameVariable: 'USERNAME',
-                  passwordVariable: 'PASSWORD'
-                )]) {
-                  sh 'echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin'
-                }
-              }
-            } catch (Exception e) {
-              echo "Erreur dans le stage 'Docker Login' : ${e.message}"
-              error("Échec login Docker")
-            }
-          }
-        }
-      }
-
-      stage('Unit Tests') {
+    stage('UnitTest') {
       when {
-          changeset "**/*.java"
-        }
-        steps {
-          script {
-            try {
-              container('gradle') {
-                dir("${WORK_DIR}") {
-                  sh 'chmod +x ./gradlew'
-                  sh './gradlew test --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}'
-                }
+        changeset "**/*.java"
+      }
+      steps {
+        script {
+          try {
+            container('gradle') {
+              dir("${WORK_DIR}") {
+                sh 'chmod +x ./gradlew'
+                sh './gradlew test --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}'
               }
-            } catch (Exception e) {
-              echo "Erreur dans le stage 'Unit Tests' : ${e.message}"
-              error("Échec des tests unitaires")
             }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'UnitTest' : ${e.message}"
+            error("Échec des tests unitaires")
           }
         }
       }
+    }
 
-      stage('Build') {
-        steps {
-          script {
-            try {
-              container('gradle') {
-                dir("${WORK_DIR}") {
+    stage('SonarQube') {
+      steps {
+        script {
+          try {
+            container('gradle') {
+              dir("${WORK_DIR}") {
+                withSonarQubeEnv("${SONARQUBE_SERVER}") {
+                  sh './gradlew sonarqube --project-cache-dir=${GRADLE_CACHE_PATH} -Dsonar.projectKey=chatsoa'
+                }
+              }
+            }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'SonarQube' : ${e.message}"
+            error("Échec de l'analyse SonarQube")
+          }
+        }
+      }
+    }
+
+
+    stage('Build') {
+      steps {
+        script {
+          try {
+            container('gradle') {
+              dir("${WORK_DIR}") {
                 sh '''
                   chmod +x ./gradlew
                   export GRADLE_USER_HOME=${GRADLE_CACHE_PATH}
                   ./gradlew build --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}
-                   ls -l build/libs
-                   ls -l /mnt/gradle_cache/wrapper/dists || echo "Dossier vide"
-                   '''
-                }
-              }
-            } catch (Exception e) {
-              echo "Erreur dans le stage 'Build' : ${e.message}"
-              error("Échec de la compilation")
-            }
-          }
-        }
-      }
-
-      stage('Build Image') {
-        steps {
-          script {
-            try {
-              container('docker') {
-                 dir("${WORK_DIR}") {
-                        sh """
-                          docker buildx build --push \
-                            --build-arg BUILDKIT_INLINE_CACHE=1 \
-                            --cache-from=type=registry,ref=${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest \
-                            -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
-                            -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest .
-                        """
-                      }
-              }
-            } catch (Exception e) {
-              echo "Erreur dans le stage 'Build Image' : ${e.message}"
-              error("Échec de la construction de l'image Docker")
-            }
-          }
-        }
-      }
-
-      stage('Save Artifacts') {
-        steps {
-          script {
-            try {
-              container('docker') {
-                sh '''
-                  mkdir -p $ARTIFACTS_PVC_PATH/chatsoa-$BUILD_NUMBER
-                  cp -r $WORK_DIR/build/libs/*.jar $ARTIFACTS_PVC_PATH/chatsoa-$BUILD_NUMBER/ || true
+                  ls -l build/libs
+                  ls -l /mnt/gradle_cache/wrapper/dists || echo "Dossier vide"
                 '''
               }
-            } catch (Exception e) {
-              echo "Erreur dans le stage 'Save Artifacts' : ${e.message}"
-              error("Échec de la sauvegarde des artefacts")
             }
-          }
-        }
-      }
-
-      stage('Nettoyage') {
-        steps {
-          script {
-            try {
-              container('docker') {
-                sh '''
-                  docker buildx rm mybuilder || true
-                  docker image prune -af || true
-                '''
-              }
-            } catch (Exception e) {
-              echo "Erreur dans le stage 'Nettoyage' : ${e.message}"
-              error("Échec lors du nettoyage")
-            }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Build' : ${e.message}"
+            error("Échec de la compilation")
           }
         }
       }
     }
 
-    post {
-      success {
-        echo "Build terminé avec succès pour ChatSOA"
+    stage('Push') {
+      steps {
+        script {
+          try {
+            container('docker') {
+              withCredentials([usernamePassword(
+                credentialsId: 'dockerhub-creds',
+                usernameVariable: 'USERNAME',
+                passwordVariable: 'PASSWORD'
+              )]) {
+                sh 'echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin'
+                dir("${WORK_DIR}") {
+                  sh """
+                    docker buildx build --push \
+                      --build-arg BUILDKIT_INLINE_CACHE=1 \
+                      --cache-from=type=registry,ref=${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest \
+                      -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
+                      -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest .
+                  """
+                }
+              }
+            }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Push' : ${e.message}"
+            error("Échec de la construction/push de l'image Docker")
+          }
+        }
       }
-      failure {
-        echo "Build échoué pour ChatSOA"
+    }
+
+    stage('Deploy') {
+      steps {
+        script {
+          try {
+            container('kubectl') {
+              withCredentials([file(credentialsId: 'kubeconfig-credentials', variable: 'KUBECONFIG')]) {
+                sh """
+                  kubectl --kubeconfig=\${KUBECONFIG} apply -f ${WORK_DIR}/k8s/deployment.yaml
+                  kubectl --kubeconfig=\${KUBECONFIG} rollout status deployment/chatsoa -n soa-microservices
+                """
+              }
+            }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Deploy' : ${e.message}"
+            error("Échec du déploiement")
+          }
+        }
       }
     }
   }
+
+  post {
+    success {
+      echo "Pipeline terminé avec succès pour ChatSOA"
+    }
+    failure {
+      echo "Pipeline échoué pour ChatSOA"
+    }
+    always {
+      script {
+        try {
+          container('docker') {
+            sh '''
+              docker buildx rm mybuilder || true
+              docker image prune -af || true
+            '''
+          }
+        } catch (Exception e) {
+          echo "Erreur lors du nettoyage : ${e.message}"
+        }
+      }
+    }
+  }
+}
