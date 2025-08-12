@@ -44,7 +44,7 @@ pipeline {
       }
     }
 
-    stage('UnitTest') {
+    stage('UnitTests') {
       when {
         changeset "**/*.java"
       }
