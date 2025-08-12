@@ -74,6 +74,7 @@ pipeline {
             container('gradle') {
               dir("${WORK_DIR}") {
                 withSonarQubeEnv("${SONARQUBE_SERVER}") {
+                  sh 'chmod +x ./gradlew'
                   sh './gradlew sonarqube --project-cache-dir=${GRADLE_CACHE_PATH} -Dsonar.projectKey=chatsoa'
                 }
               }
