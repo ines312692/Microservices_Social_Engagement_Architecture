@@ -21,8 +21,6 @@ pipeline {
 
   options {
     skipDefaultCheckout(true)
-    timestamps()
-    timeout(time: 15, unit: 'MINUTES')
   }
 
   stages {
