@@ -18,30 +18,7 @@ pipeline {
     WORK_DIR = "${WORKSPACE}/chatSOA/chatSOA"
   }
 
-  options {
-    skipDefaultCheckout(true)
-  }
-
-  stages {
-      stage('Checkout Last Commit Only') {
-        steps {
-          script {
-            try {
-              checkout([
-                $class: 'GitSCM',
-                branches: [[name: '*/feature/restructure-pipeline']],
-                userRemoteConfigs: [[url: 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git']],
-                extensions: [
-                  [$class: 'CloneOption', depth: 1, noTags: false, shallow: true]
-                ]
-              ])
-            } catch (Exception e) {
-              echo "Erreur dans le stage 'Checkout Last Commit Only' : ${e.message}"
-              error("Échec du checkout Git")
-            }
-          }
-        }
-      }
+stages{
 
       stage('Préparer Gradle Cache') {
         steps {
