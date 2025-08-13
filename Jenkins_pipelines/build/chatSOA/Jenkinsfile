@@ -73,7 +73,7 @@ pipeline {
     }
 
     stage('Unit Tests') {
-      when { changeset "**/*.java" }
+
       steps {
         script {
           try {
@@ -98,7 +98,7 @@ pipeline {
             container('gradle') {
               dir("${WORK_DIR}") {
                 withSonarQubeEnv('SonarQube') {
-                  sh './gradlew sonarqube -Dsonar.projectKey=ChatSOA -Dsonar.java.binaries=build/classes'
+                  sh './gradlew sonar -Dsonar.projectKey=ChatSOA -Dsonar.java.binaries=build/classes'
                 }
               }
             }
