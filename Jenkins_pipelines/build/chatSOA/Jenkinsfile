@@ -27,26 +27,37 @@ pipeline {
 
    stages {
       stage('Checkout') {
-        steps {
-          script {
-            try {
-              checkout([
-                $class: 'GitSCM',
-                branches: [[name: "*/${BRANCH_NAME}"]],
-                userRemoteConfigs: [[url: "${REPO_URL}"]],
-                extensions: [
-                  [$class: 'CloneOption', depth: 1, noTags: false, shallow: true, prune: true]
-                ]
-              ])
-              echo "Checkout effectué depuis ${BRANCH_NAME}"
-              sh 'ls -la'
-            } catch (Exception e) {
-              echo "Erreur dans le stage 'Checkout' : ${e.message}"
-              error("Échec du checkout Git")
-            }
+          steps {
+              script {
+                  echo "Début du Checkout depuis la branche ${BRANCH_NAME}"
+
+                  try {
+                      retry(2) {
+                          dir("${WORKSPACE}") {
+                              checkout([
+                                  $class: 'GitSCM',
+                                  branches: [[name: "*/${BRANCH_NAME}"]],
+                                  userRemoteConfigs: [[url: "${REPO_URL}"]],
+                                  extensions: [
+                                      [$class: 'CloneOption', depth: 1, noTags: true]
+                                  ]
+                              ])
+                          }
+                      }
+
+                      echo "Checkout effectué avec succès depuis ${BRANCH_NAME}"
+                      if (env.DEBUG == 'true') {
+                          sh 'ls -la'
+                      }
+
+                  } catch (Exception e) {
+                      echo "Erreur dans le stage 'Checkout' : ${e.getMessage()}"
+                      error("Échec du checkout Git pour ${BRANCH_NAME}")
+                  }
+              }
           }
-        }
       }
+
 
       stage('UnitTests') {
         steps {
