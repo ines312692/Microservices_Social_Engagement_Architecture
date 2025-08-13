@@ -38,9 +38,7 @@ pipeline {
                                  branches: [[name: "*/${BRANCH_NAME}"]],
                                  userRemoteConfigs: [[url: "${REPO_URL}"]],
                                  extensions: [
-                                     // Shallow clone rapide
                                      [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
-                                     // Utilisation de la branche locale
                                      [$class: 'LocalBranch', localBranch: "${BRANCH_NAME}"]
                                  ]
                              ])
@@ -65,9 +63,25 @@ pipeline {
 
 
       stage('UnitTests') {
-        steps {
-          echo "Stage vide pour le moment"
-        }
+         when {
+                changeset "**/*.java"
+              }
+              steps {
+                script {
+                  try {
+                    container('gradle') {
+                      dir("${WORK_DIR}") {
+                        sh 'chmod +x ./gradlew'
+                        sh './gradlew test --project-cache-dir=${GRADLE_CACHE_PATH}'
+                      }
+                    }
+                  } catch (Exception e) {
+                    echo "Erreur dans le stage 'UnitTest' : ${e.message}"
+                    error("Échec des tests unitaires")
+                  }
+                }
+              }
+
       }
 
       stage('SonarQube') {
