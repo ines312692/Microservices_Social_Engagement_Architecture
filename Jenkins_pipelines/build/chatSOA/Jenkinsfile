@@ -63,24 +63,35 @@ pipeline {
 
 
       stage('UnitTests') {
-
-              steps {
-                script {
+          steps {
+              script {
                   try {
-                    container('gradle') {
-                      dir("${WORK_DIR}") {
-                        sh 'chmod +x ./gradlew'
-                        sh './gradlew test --project-cache-dir=${GRADLE_CACHE_PATH}'
-                      }
-                    }
-                  } catch (Exception e) {
-                    echo "Erreur dans le stage 'UnitTest' : ${e.message}"
-                    error("Échec des tests unitaires")
-                  }
-                }
-              }
+                      container('gradle') {
+                          dir("${WORK_DIR}") {
+                              // Assure que le wrapper est exécutable
+                              sh 'chmod +x ./gradlew'
 
+                              // Utilisation du cache PVC pour Gradle Wrapper et les dépendances
+                              withEnv([
+                                  "GRADLE_USER_HOME=${GRADLE_CACHE_PATH}",
+                                  "GRADLE_DOWNLOAD_TIMEOUT=60000"  // Timeout augmenté à 60s
+                              ]) {
+                                  // Exécuter les tests unitaires
+                                  sh './gradlew test --project-cache-dir=${GRADLE_CACHE_PATH}'
+                              }
+
+                              // Optionnel : lister les résultats
+                              sh 'ls -l build/test-results || echo "Pas de résultats"'
+                          }
+                      }
+                  } catch (Exception e) {
+                      echo "Erreur dans le stage 'UnitTests' : ${e.message}"
+                      error("Échec des tests unitaires")
+                  }
+              }
+          }
       }
+
 
       stage('SonarQube') {
         steps {
