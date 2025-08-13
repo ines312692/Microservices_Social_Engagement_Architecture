@@ -59,26 +59,6 @@ pipeline {
         }
       }
 
-      stage('Docker Login') {
-        steps {
-          script {
-            try {
-              container('docker') {
-                withCredentials([usernamePassword(
-                  credentialsId: 'dockerhub-creds',
-                  usernameVariable: 'USERNAME',
-                  passwordVariable: 'PASSWORD'
-                )]) {
-                  sh 'echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin'
-                }
-              }
-            } catch (Exception e) {
-              echo "Erreur dans le stage 'Docker Login' : ${e.message}"
-              error("Échec login Docker")
-            }
-          }
-        }
-      }
 
       stage('Unit Tests') {
       when {
