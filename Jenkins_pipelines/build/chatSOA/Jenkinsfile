@@ -109,10 +109,8 @@ pipeline {
                 dir("${WORK_DIR}") {
                 sh '''
                   chmod +x ./gradlew
-                  export GRADLE_USER_HOME=${GRADLE_CACHE_PATH}
-                  ./gradlew build --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}
-                   ls -l build/libs
-                   ls -l /mnt/gradle_cache/wrapper/dists || echo "Dossier vide"
+                   export GRADLE_USER_HOME=/mnt/gradle_cache
+                  ./gradlew build --parallel --max-workers=4 --project-cache-dir=/mnt/gradle_cache
                    '''
                 }
               }
