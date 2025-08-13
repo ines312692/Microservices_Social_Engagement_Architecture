@@ -16,10 +16,43 @@ pipeline {
     GRADLE_CACHE_PATH = '/mnt/gradle_cache'
     ARTIFACTS_PVC_PATH = '/mnt/artifacts'
     WORK_DIR = "${WORKSPACE}/chatSOA/chatSOA"
+    BRANCH_NAME = 'feature/restructure-pipeline'
+    REPO_URL = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
   }
+   options {
+      skipDefaultCheckout(true)
+    }
 
 stages{
-
+stage('Checkout') {
+      steps {
+        container('git') {
+          script {
+            echo "Début du Checkout depuis la branche ${BRANCH_NAME}"
+            try {
+              retry(2) {
+                checkout([
+                  $class: 'GitSCM',
+                  branches: [[name: "*/${BRANCH_NAME}"]],
+                  userRemoteConfigs: [[url: "${REPO_URL}"]],
+                  extensions: [
+                    [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
+                    [$class: 'LocalBranch', localBranch: "${BRANCH_NAME}"]
+                  ]
+                ])
+              }
+              echo "Checkout effectué avec succès depuis ${BRANCH_NAME}"
+              if (env.DEBUG == 'true') {
+                sh 'ls -la'
+              }
+            } catch (Exception e) {
+              echo "Erreur dans le stage 'Checkout' : ${e.getMessage()}"
+              error("Échec du checkout Git pour ${BRANCH_NAME}")
+            }
+          }
+        }
+      }
+    }
       stage('Préparer Gradle Cache') {
         steps {
           script {
