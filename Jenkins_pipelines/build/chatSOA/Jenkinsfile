@@ -153,26 +153,28 @@ pipeline {
       }
     }
 
-    stage('Build Docker Image') {
-      steps {
-        script {
-          try {
-            container('docker') {
-              sh """
-                docker buildx build --push \
-                  --build-arg BUILDKIT_INLINE_CACHE=1 \
-                  --cache-from=type=registry,ref=${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest \
-                  -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
-                  -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest .
-              """
+     stage('Build Docker Image') {
+          steps {
+            script {
+              try {
+                container('docker') {
+                  dir("${WORK_DIR}") {
+                    sh """
+                      docker buildx build --push \
+                        --build-arg BUILDKIT_INLINE_CACHE=1 \
+                        --cache-from=type=registry,ref=${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest \
+                        -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
+                        -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest .
+                    """
+                  }
+                }
+              } catch (Exception e) {
+                echo "Erreur dans le stage 'Build Docker Image' : ${e.message}"
+                error("Échec de la construction de l'image Docker")
+              }
             }
-          } catch (Exception e) {
-            echo "Erreur dans le stage 'Build Docker Image' : ${e.message}"
-            error("Échec de la construction de l'image Docker")
           }
         }
-      }
-    }
 
     stage('Save Artifacts') {
       steps {
