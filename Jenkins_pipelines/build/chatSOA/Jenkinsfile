@@ -99,6 +99,7 @@ pipeline {
             container('gradle') {
               dir("${WORK_DIR}") {
                 withSonarQubeEnv("${SONARQUBE_SERVER}") {
+                  sh 'chmod +x ./gradlew'
                   sh './gradlew sonar -Dsonar.projectKey=chatSOA -Dsonar.java.binaries=build/classes'
                 }
               }
