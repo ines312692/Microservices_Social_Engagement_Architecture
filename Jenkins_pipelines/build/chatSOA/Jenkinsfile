@@ -29,7 +29,7 @@ pipeline {
             try {
               checkout([
                 $class: 'GitSCM',
-                branches: [[name: '*/feature/restructure-pipeline']],
+                branches: [[name: '*/feature/Jenkins_as_Code']],
                 userRemoteConfigs: [[url: 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git']],
                 extensions: [
                   [$class: 'CloneOption', depth: 1, noTags: false, shallow: true]
