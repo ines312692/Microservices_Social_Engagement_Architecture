@@ -18,6 +18,7 @@ pipeline {
     WORK_DIR = "${WORKSPACE}/chatSOA/chatSOA"
     BRANCH_NAME = 'feature/restructure-pipeline'
     REPO_URL = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
+    SONARQUBE_SERVER = 'sonarqube-local'
   }
 
   options {
@@ -97,7 +98,7 @@ pipeline {
           try {
             container('gradle') {
               dir("${WORK_DIR}") {
-                withSonarQubeEnv('SonarQube') {
+                withSonarQubeEnv("${SONARQUBE_SERVER}") {
                   sh './gradlew sonar -Dsonar.projectKey=ChatSOA -Dsonar.java.binaries=build/classes'
                 }
               }
