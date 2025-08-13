@@ -27,49 +27,31 @@ pipeline {
 
    stages {
       stage('Checkout') {
-          steps {
-              script {
+            steps {
+              container('git') {
+                script {
                   echo "Début du Checkout depuis la branche ${BRANCH_NAME}"
-                  try {
-                      retry(2) {
-                          container('git') {
-                              dir("${WORKSPACE}") {
-                                  if (fileExists(".git")) {
-                                      echo "Repo existant détecté, mise à jour via fetch"
-                                      sh """
-                                         git fetch --depth=1 origin +refs/heads/${BRANCH_NAME}:refs/remotes/origin/${BRANCH_NAME}
-                                         git reset --hard origin/${BRANCH_NAME}
-                                      """
-                                  } else {
-                                      echo "Clone du repo en shallow"
-                                      checkout([
-                                          $class: 'GitSCM',
-                                          branches: [[name: "*/${BRANCH_NAME}"]],
-                                          userRemoteConfigs: [[url: "${REPO_URL}"]],
-                                          extensions: [
-                                              [$class: 'CloneOption', depth: 1, noTags: true, shallow: true]
-                                          ]
-                                      ])
-                                  }
-                              }
-                          }
-                      }
-
-                      echo "Checkout effectué avec succès depuis ${BRANCH_NAME}"
-                      if (env.DEBUG == 'true') {
-                          sh 'ls -la'
-                      }
-
-                  } catch (Exception e) {
-                      echo "Erreur dans le stage 'Checkout' : ${e.getMessage()}"
-                      error("Échec du checkout Git pour ${BRANCH_NAME}")
+                  retry(2) {
+                    checkout([
+                      $class: 'GitSCM',
+                      branches: [[name: "*/${BRANCH_NAME}"]],
+                      userRemoteConfigs: [[url: "${REPO_URL}"]],
+                      extensions: [
+                        [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
+                        [$class: 'WipeWorkspace'],
+                        [$class: 'LocalBranch', localBranch: "${BRANCH_NAME}"],
+                        [$class: 'GitSCMVerbose', verbose: false]
+                      ]
+                    ])
                   }
+                  echo "Checkout effectué avec succès depuis ${BRANCH_NAME}"
+                  if (env.DEBUG == 'true') {
+                    sh 'ls -la'
+                  }
+                }
               }
+            }
           }
-      }
-
-
-
       stage('UnitTests') {
         steps {
           echo "Stage vide pour le moment"
