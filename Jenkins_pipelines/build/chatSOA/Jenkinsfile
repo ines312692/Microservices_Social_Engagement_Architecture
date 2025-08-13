@@ -37,8 +37,8 @@ pipeline {
                                   if (fileExists(".git")) {
                                       echo "Repo existant détecté, mise à jour via fetch"
                                       sh """
-                                          git fetch --depth=1 origin ${BRANCH_NAME}
-                                          git reset --hard origin/${BRANCH_NAME}
+                                         git fetch --depth=1 origin +refs/heads/${BRANCH_NAME}:refs/remotes/origin/${BRANCH_NAME}
+                                         git reset --hard origin/${BRANCH_NAME}
                                       """
                                   } else {
                                       echo "Clone du repo en shallow"
