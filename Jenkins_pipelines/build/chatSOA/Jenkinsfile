@@ -2,7 +2,7 @@ pipeline {
   agent {
     kubernetes {
       inheritFrom 'build-chat'
-      defaultContainer 'docker'
+      defaultContainer 'gradle'
       namespace 'soa-microservices'
       serviceAccount 'chatsoa-deployer'
     }
@@ -74,16 +74,14 @@ pipeline {
     }
 
     stage('Unit Tests') {
-
+      when { changeset "**/*.java" }
       steps {
         script {
           try {
-            container('gradle') {
-              dir("${WORK_DIR}") {
-                sh 'chmod +x ./gradlew'
-                sh './gradlew test --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}'
-              }
-            }
+
+              sh 'chmod +x ./gradlew'
+              sh './gradlew test jacocoTestReport --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}'
+
           } catch (Exception e) {
             echo "Erreur dans le stage 'Unit Tests' : ${e.message}"
             error("Échec des tests unitaires")
@@ -93,21 +91,20 @@ pipeline {
     }
 
     stage('SonarQube Analysis') {
+     when { changeset "**/*.java" }
       steps {
         script {
           try {
-            container('gradle') {
-              dir("${WORK_DIR}") {
-                withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                  sh 'chmod +x ./gradlew'
-                  sh './gradlew sonar \
-                        -Dsonar.projectKey=chatSOA \
-                        -Dsonar.java.binaries=build/classes \
-                        -Dsonar.junit.reportPaths=build/test-results/test \
-                        -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml'
-                }
+
+              withSonarQubeEnv("${SONARQUBE_SERVER}") {
+                sh 'chmod +x ./gradlew'
+                sh './gradlew sonar \
+                      -Dsonar.projectKey=chatSOA \
+                      -Dsonar.java.binaries=build/classes/java/main \
+                      -Dsonar.junit.reportPaths=build/test-results/test \
+                      -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml'
               }
-            }
+
           } catch (Exception e) {
             echo "Erreur dans le stage 'SonarQube Analysis' : ${e.message}"
             error("Échec de l'analyse SonarQube")
@@ -120,15 +117,13 @@ pipeline {
       steps {
         script {
           try {
-            container('gradle') {
-              dir("${WORK_DIR}") {
-                sh """
-                  chmod +x ./gradlew
-                  export GRADLE_USER_HOME=${GRADLE_CACHE_PATH}
-                  ./gradlew build --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}
-                """
-              }
-            }
+
+              sh """
+                chmod +x ./gradlew
+                export GRADLE_USER_HOME=${GRADLE_CACHE_PATH}
+                ./gradlew build --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}
+              """
+
           } catch (Exception e) {
             echo "Erreur dans le stage 'Build Gradle' : ${e.message}"
             error("Échec de la compilation Gradle")
@@ -163,7 +158,7 @@ pipeline {
         script {
           try {
             container('docker') {
-              dir("${WORK_DIR}") {
+
                 sh """
                   docker buildx build --push \
                     --build-arg BUILDKIT_INLINE_CACHE=1 \
@@ -171,7 +166,7 @@ pipeline {
                     -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
                     -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest .
                 """
-              }
+
             }
           } catch (Exception e) {
             echo "Erreur dans le stage 'Build Docker Image' : ${e.message}"
