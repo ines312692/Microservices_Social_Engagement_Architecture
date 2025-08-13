@@ -25,79 +25,80 @@ pipeline {
     skipDefaultCheckout(true)
   }
 
-   stages {
-     stage('Checkout') {
-         steps {
-             container('git') {
-                 script {
-                     echo "Début du Checkout depuis la branche ${BRANCH_NAME}"
-                     try {
-                         retry(2) {
-                             checkout([
-                                 $class: 'GitSCM',
-                                 branches: [[name: "*/${BRANCH_NAME}"]],
-                                 userRemoteConfigs: [[url: "${REPO_URL}"]],
-                                 extensions: [
-                                     [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
-                                     [$class: 'LocalBranch', localBranch: "${BRANCH_NAME}"]
-                                 ]
-                             ])
-                         }
-
-                         echo "Checkout effectué avec succès depuis ${BRANCH_NAME}"
-
-                         if (env.DEBUG == 'true') {
-                             sh 'ls -la'
-                         }
-
-                     } catch (Exception e) {
-                         echo "Erreur dans le stage 'Checkout' : ${e.getMessage()}"
-                         error("Échec du checkout Git pour ${BRANCH_NAME}")
-                     }
-                 }
-             }
-         }
-     }
-     stage('Unit Tests') {
-            steps {
-              script {
-                try {
-                  container('gradle') {
-                    dir("${WORK_DIR}") {
-                      sh 'chmod +x ./gradlew'
-                      sh './gradlew test --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}'
-                    }
-                  }
-                } catch (Exception e) {
-                  echo "Erreur dans le stage 'Unit Tests' : ${e.message}"
-                  error("Échec des tests unitaires")
-                }
+  stages {
+    stage('Checkout') {
+      steps {
+        container('git') {
+          script {
+            echo "Début du Checkout depuis la branche ${BRANCH_NAME}"
+            try {
+              retry(2) {
+                checkout([
+                  $class: 'GitSCM',
+                  branches: [[name: "*/${BRANCH_NAME}"]],
+                  userRemoteConfigs: [[url: "${REPO_URL}"]],
+                  extensions: [
+                    [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
+                    [$class: 'LocalBranch', localBranch: "${BRANCH_NAME}"]
+                  ]
+                ])
               }
+              echo "Checkout effectué avec succès depuis ${BRANCH_NAME}"
+
+              if (env.DEBUG == 'true') {
+                sh 'ls -la'
+              }
+
+            } catch (Exception e) {
+              echo "Erreur dans le stage 'Checkout' : ${e.getMessage()}"
+              error("Échec du checkout Git pour ${BRANCH_NAME}")
             }
-
-
-      stage('SonarQube') {
-        steps {
-          echo "Stage vide pour le moment"
-        }
-      }
-
-      stage('Build') {
-        steps {
-          echo "Stage vide pour le moment"
-        }
-      }
-
-      stage('Push') {
-        steps {
-          echo "Stage vide pour le moment"
-        }
-      }
-
-      stage('Deploy') {
-        steps {
-          echo "Stage vide pour le moment"
+          }
         }
       }
     }
+
+    stage('Unit Tests') {
+      steps {
+        script {
+          try {
+            container('gradle') {
+              dir("${WORK_DIR}") {
+                sh 'chmod +x ./gradlew'
+                sh 'gradle test --project-cache-dir=${GRADLE_CACHE_PATH}'
+                sh 'ls -l build/test-results || echo "Pas de résultats"'
+              }
+            }
+          } catch (Exception e) {
+            echo "Erreur dans le stage 'Unit Tests' : ${e.message}"
+            error("Échec des tests unitaires")
+          }
+        }
+      }
+    }
+
+    stage('SonarQube') {
+      steps {
+        echo "Stage vide pour le moment"
+      }
+    }
+
+    stage('Build') {
+      steps {
+        echo "Stage vide pour le moment"
+      }
+    }
+
+    stage('Push') {
+      steps {
+        echo "Stage vide pour le moment"
+      }
+    }
+
+    stage('Deploy') {
+      steps {
+        echo "Stage vide pour le moment"
+      }
+    }
   }
+}
