@@ -4,7 +4,7 @@
   <component name="FrameworkDetectionExcludesConfiguration">
     <file type="web" url="file://$PROJECT_DIR$/chatSOA/chatSOA" />
     <file type="web" url="file://$PROJECT_DIR$/engagementSOA" />
-    <file type="web" url="file://$PROJECT_DIR$/SOA" />
+    <file type="web" url="file://$PROJECT_DIR$/EurekaSOA" />
     <file type="web" url="file://$PROJECT_DIR$/UserSOA/UserSOA" />
   </component>
   <component name="ProjectRootManager" version="2" project-jdk-name="17" project-jdk-type="JavaSDK">
