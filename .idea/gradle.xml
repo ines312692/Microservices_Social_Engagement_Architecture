@@ -26,7 +26,7 @@
         <option name="gradleJvm" value="#JAVA_HOME" />
         <option name="modules">
           <set>
-            <option value="$PROJECT_DIR$/chatSOA/chatSOA" />
+            <option value="$PROJECT_DIR$/ChatSOA/chatSOA" />
           </set>
         </option>
       </GradleProjectSettings>
@@ -35,7 +35,7 @@
         <option name="gradleJvm" value="#JAVA_HOME" />
         <option name="modules">
           <set>
-            <option value="$PROJECT_DIR$/engagementSOA" />
+            <option value="$PROJECT_DIR$/EngagementSOA" />
           </set>
         </option>
       </GradleProjectSettings>

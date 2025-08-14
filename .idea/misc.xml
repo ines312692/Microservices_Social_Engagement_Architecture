@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ExternalStorageConfigurationManager" enabled="true" />
   <component name="FrameworkDetectionExcludesConfiguration">
-    <file type="web" url="file://$PROJECT_DIR$/chatSOA/chatSOA" />
-    <file type="web" url="file://$PROJECT_DIR$/engagementSOA" />
+    <file type="web" url="file://$PROJECT_DIR$/ChatSOA/chatSOA" />
+    <file type="web" url="file://$PROJECT_DIR$/EngagementSOA" />
     <file type="web" url="file://$PROJECT_DIR$/EurekaSOA" />
     <file type="web" url="file://$PROJECT_DIR$/UserSOA/UserSOA" />
   </component>
