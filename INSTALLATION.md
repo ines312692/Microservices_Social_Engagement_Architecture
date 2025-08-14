@@ -269,10 +269,15 @@ Once Minikube, kubectl, and Jenkins are installed and configured, you can run th
 2. **Kubernetes deployment failure**
    - Check RBAC permissions
    - Verify that PVCs are created: `kubectl get pvc -n soa-microservices`
-   - Pour diagnostiquer pourquoi le pipeline ne démarre ps :
-     `kubectl get pod -n <nom-du-namespace>`
-     `kubectl describe pod <nom-du-pod> -n <nom-du-namespace>`
-     `kubectl logs <nom-du-pod> -n <nom-du-namespace>`
-      `kubectl exec -it <pod-name> -n soa-microservices -- /bin/bash`
-     `tail -f /var/log/jenkins/jenkins.log `
+- Pour diagnostiquer pourquoi le pipeline ne démarre pas :
+
+`kubectl get pod -n <nom-du-namespace>`
+
+`kubectl describe pod <nom-du-pod> -n <nom-du-namespace>`
+
+`kubectl logs <nom-du-pod> -n <nom-du-namespace>`
+
+`kubectl exec -it <pod-name> -n soa-microservices -- /bin/bash`
+
+`tail -f /var/log/jenkins/jenkins.log`
    
