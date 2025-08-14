@@ -1,37 +1,37 @@
-# Guide d'Installation et de Configuration
+# Installation and Configuration Guide
 
-Ce guide explique comment installer et configurer Minikube, kubectl et Jenkins pour le projet SOA Microservices.
+This guide explains how to install and configure Minikube, kubectl, and Jenkins for the SOA Microservices project.
 
-## Table des matières
-1. [Installation de Minikube](#installation-de-minikube)
-2. [Installation de kubectl](#installation-de-kubectl)
-3. [Installation de Jenkins](#installation-de-jenkins)
-4. [Configuration de Jenkins pour le projet](#configuration-de-jenkins-pour-le-projet)
+## Table of Contents
+1. [Minikube Installation](#minikube-installation)
+2. [kubectl Installation](#kubectl-installation)
+3. [Jenkins Installation](#jenkins-installation)
+4. [Jenkins Configuration for the Project](#jenkins-configuration-for-the-project)
 
-## Installation de Minikube
+## Minikube Installation
 
-Minikube est un outil qui permet d'exécuter Kubernetes localement. Il crée une machine virtuelle sur votre ordinateur qui exécute un cluster Kubernetes à nœud unique.
+Minikube is a tool that allows you to run Kubernetes locally. It creates a virtual machine on your computer that runs a single-node Kubernetes cluster.
 
-### Prérequis
-- Un hyperviseur installé (comme VirtualBox, Hyper-V, Docker)
-- 2 CPUs ou plus
-- 2 Go de mémoire libre
-- 20 Go d'espace disque libre
-- Connexion Internet
+### Prerequisites
+- An installed hypervisor (such as VirtualBox, Hyper-V, Docker)
+- 2 CPUs or more
+- 2 GB of free memory
+- 20 GB of free disk space
+- Internet connection
 
-### Installation sur Windows
+### Installation on Windows
 
-1. **Téléchargement de Minikube**
-   - Visitez la [page de téléchargement de Minikube](https://minikube.sigs.k8s.io/docs/start/)
-   - Téléchargez l'installateur Windows (.exe)
+1. **Download Minikube**
+   - Visit the [Minikube download page](https://minikube.sigs.k8s.io/docs/start/)
+   - Download the Windows installer (.exe)
 
-2. **Installation via PowerShell (administrateur)**
+2. **Installation via PowerShell (administrator)**
    ```powershell
    New-Item -Path 'c:\' -Name 'minikube' -ItemType Directory -Force
    Invoke-WebRequest -OutFile 'c:\minikube\minikube.exe' -Uri 'https://github.com/kubernetes/minikube/releases/latest/download/minikube-windows-amd64.exe' -UseBasicParsing
    ```
 
-3. **Ajout au PATH**
+3. **Add to PATH**
    ```powershell
    $oldPath = [Environment]::GetEnvironmentVariable('Path', [EnvironmentVariableTarget]::Machine)
    if ($oldPath.Split(';') -inotcontains 'C:\minikube') { 
@@ -39,80 +39,80 @@ Minikube est un outil qui permet d'exécuter Kubernetes localement. Il crée une
    }
    ```
 
-4. **Démarrage de Minikube**
+4. **Start Minikube**
    ```powershell
    minikube start --driver=<driver_name>
    ```
-   Remplacez `<driver_name>` par votre hyperviseur préféré (virtualbox, hyperv, docker).
+   Replace `<driver_name>` with your preferred hypervisor (virtualbox, hyperv, docker).
 
-5. **Vérification de l'installation**
+5. **Verify Installation**
    ```powershell
    minikube status
    ```
 
-## Installation de kubectl
+## kubectl Installation
 
-kubectl est l'outil en ligne de commande pour interagir avec les clusters Kubernetes.
+kubectl is the command-line tool for interacting with Kubernetes clusters.
 
-### Installation sur Windows
+### Installation on Windows
 
-1. **Téléchargement de kubectl**
+1. **Download kubectl**
    ```powershell
    Invoke-WebRequest -OutFile 'C:\minikube\kubectl.exe' -Uri 'https://dl.k8s.io/release/v1.28.0/bin/windows/amd64/kubectl.exe'
    ```
 
-2. **Vérification de l'installation**
+2. **Verify Installation**
    ```powershell
    kubectl version --client
    ```
 
-3. **Configuration de kubectl pour utiliser Minikube**
+3. **Configure kubectl to use Minikube**
    ```powershell
    minikube kubectl -- get pods -A
    ```
 
-4. **Création d'un alias (optionnel)**
+4. **Create an alias (optional)**
    ```powershell
    New-Alias -Name kubectl -Value minikube kubectl --
    ```
 
-## Installation de Jenkins
+## Jenkins Installation
 
-Jenkins est un serveur d'automatisation open-source qui permet de construire, tester et déployer des logiciels.
+Jenkins is an open-source automation server that allows you to build, test, and deploy software.
 
-### Installation sur Windows
+### Installation on Windows
 
-1. **Prérequis**
-   - Java 11 ou supérieur installé
-   - Téléchargez et installez [Java JDK](https://www.oracle.com/java/technologies/downloads/) si nécessaire
+1. **Prerequisites**
+   - Java 11 or higher installed
+   - Download and install [Java JDK](https://www.oracle.com/java/technologies/downloads/) if necessary
 
-2. **Téléchargement de Jenkins**
-   - Visitez [jenkins.io](https://www.jenkins.io/download/)
-   - Téléchargez l'installateur Windows (.msi)
-   - vous pouvez utiliser image jenkins/jenkins:lts si vous souhaitez utiliser Docker
+2. **Download Jenkins**
+   - Visit [jenkins.io](https://www.jenkins.io/download/)
+   - Download the Windows installer (.msi)
+   - You can use the jenkins/jenkins:lts image if you prefer to use Docker
 
 3. **Installation**
-   - L'installation par défaut place Jenkins sur http://localhost:8080/
+   - The default installation places Jenkins at http://localhost:8080/
 
-4. **Configuration initiale**
-   - Ouvrez un navigateur et accédez à http://localhost:8080/
-   - Récupérez le mot de passe initial dans le fichier indiqué à l'écran
+4. **Initial Configuration**
+   - Open a browser and go to http://localhost:8080/
+   - Retrieve the initial password from the file indicated on the screen
    ```powershell
    Get-Content "C:\Program Files\Jenkins\secrets\initialAdminPassword"
    ```
-   - Installez les plugins suggérés
-   - Créez un compte administrateur
-   - Configurez l'URL de Jenkins
+   - Install the suggested plugins
+   - Create an administrator account
+   - Configure the Jenkins URL
 
-## Configuration de Jenkins pour le projet
+## Jenkins Configuration for the Project
 
-Cette section explique comment configurer Jenkins pour le projet SOA Microservices.
+This section explains how to configure Jenkins for the SOA Microservices project.
 
-### Configuration des plugins nécessaires
+### Required Plugins Configuration
 
-1. **Installation des plugins**
-   - Accédez à "Administrer Jenkins" > "Gestion des plugins" > "Disponibles"
-   - Recherchez et installez les plugins suivants:
+1. **Plugin Installation**
+   - Go to "Manage Jenkins" > "Manage Plugins" > "Available"
+   - Search for and install the following plugins:
      - Kubernetes
      - Docker Pipeline
      - Git Integration
@@ -120,50 +120,50 @@ Cette section explique comment configurer Jenkins pour le projet SOA Microservic
      - SonarQube Scanner
      - Credentials Binding
 
-2. **Redémarrage de Jenkins**
-   - Cochez "Redémarrer Jenkins quand l'installation est terminée et qu'aucun job n'est en cours"
+2. **Restart Jenkins**
+   - Check "Restart Jenkins when installation is complete and no jobs are running"
 
-### Configuration des credentials
+### Credentials Configuration
 
-1. **Ajout des credentials Docker Hub**
-   - Accédez à "Administrer Jenkins" > "Manage Credentials" > "Jenkins" > "Global credentials" > "Add Credentials"
-   - Sélectionnez "Username with password"
+1. **Add Docker Hub Credentials**
+   - Go to "Manage Jenkins" > "Manage Credentials" > "Jenkins" > "Global credentials" > "Add Credentials"
+   - Select "Username with password"
    - ID: `dockerhub-creds`
-   - Username: Votre nom d'utilisateur Docker Hub
-   - Password: Votre mot de passe Docker Hub
+   - Username: Your Docker Hub username
+   - Password: Your Docker Hub password
    - Description: "Docker Hub Credentials"
 
-2. **Ajout des credentials GitHub**
-   - Accédez à "Administrer Jenkins" > "Manage Credentials" > "Jenkins" > "Global credentials" > "Add Credentials"
-   - Sélectionnez "Username with password"
+2. **Add GitHub Credentials**
+   - Go to "Manage Jenkins" > "Manage Credentials" > "Jenkins" > "Global credentials" > "Add Credentials"
+   - Select "Username with password"
    - ID: `github-creds`
-   - Username: Votre nom d'utilisateur GitHub
-   - Password: Votre token d'accès personnel GitHub
+   - Username: Your GitHub username
+   - Password: Your GitHub personal access token
    - Description: "GitHub Credentials"
 
-### Configuration de SonarQube
+### SonarQube Configuration
 
-1. **Configuration du serveur SonarQube**
-   - Accédez à "Administrer Jenkins" > "Configurer le système"
-   - Trouvez la section "SonarQube servers"
-   - Cliquez sur "Add SonarQube"
+1. **SonarQube Server Configuration**
+   - Go to "Manage Jenkins" > "Configure System"
+   - Find the "SonarQube servers" section
+   - Click on "Add SonarQube"
    - Name: `sonarqube-local`
-   - Server URL: `http://sonarqube-service.soa-microservices.svc.cluster.local:9000` (ou l'URL de votre serveur SonarQube)
-   - Server authentication token: Ajoutez votre token SonarQube
+   - Server URL: `http://sonarqube-service.soa-microservices.svc.cluster.local:9000` (or your SonarQube server URL)
+   - Server authentication token: Add your SonarQube token
 
-### Configuration du cloud Kubernetes
+### Kubernetes Cloud Configuration
 
-1. **Configuration du cloud Kubernetes**
-   - Accédez à "Administrer Jenkins" > "Configurer le système"
-   - Trouvez la section "Cloud"
-   - Cliquez sur "Add a new cloud" > "Kubernetes"
+1. **Kubernetes Cloud Configuration**
+   - Go to "Manage Jenkins" > "Configure System"
+   - Find the "Cloud" section
+   - Click on "Add a new cloud" > "Kubernetes"
    - Name: `kubernetes`
-   - Kubernetes URL: `https://kubernetes.default.svc.cluster.local` (si Jenkins est dans le cluster) ou utilisez `kubectl cluster-info` pour obtenir l'URL
+   - Kubernetes URL: `https://kubernetes.default.svc.cluster.local` (if Jenkins is in the cluster) or use `kubectl cluster-info` to get the URL
    - Kubernetes Namespace: `soa-microservices`
-   - Credentials: Sélectionnez ou créez les credentials pour accéder à Kubernetes
+   - Credentials: Select or create credentials to access Kubernetes
 
-2. **Configuration des Pod Templates**
-   - Dans la configuration du cloud Kubernetes, ajoutez un Pod Template:
+2. **Pod Templates Configuration**
+   - In the Kubernetes cloud configuration, add a Pod Template:
      - Name: `build-chat`
      - Namespace: `soa-microservices`
      - Labels: `build-chat`
@@ -179,87 +179,87 @@ Cette section explique comment configurer Jenkins pour le projet SOA Microservic
          - Host path: `/mnt/artifacts`
          - Mount path: `/mnt/artifacts`
 
-### Création des pipelines
+### Pipeline Creation
 
-1. **Création d'un pipeline pour chatSOA**
-   - Accédez à "Nouveau Item"
-   - Entrez un nom (ex: "chatSOA-build")
-   - Sélectionnez "Pipeline"
-   - Cliquez sur "OK"
-   - Dans la section "Pipeline":
+1. **Create a Pipeline for chatSOA**
+   - Go to "New Item"
+   - Enter a name (e.g., "chatSOA-build")
+   - Select "Pipeline"
+   - Click "OK"
+   - In the "Pipeline" section:
      - Definition: "Pipeline script from SCM"
      - SCM: Git
      - Repository URL: `https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git`
-     - Credentials: Sélectionnez vos credentials GitHub
+     - Credentials: Select your GitHub credentials
      - Branch Specifier: `*/feature/restructure-pipeline`
      - Script Path: `Jenkins_pipelines/build/chatSOA/Jenkinsfile`
-   - Cliquez sur "Sauvegarder"
+   - Click "Save"
 
-2. **Création des autres pipelines**
-   - Répétez le processus pour les autres services (UserSOA, EngagementSOA, SOA_eureka)
-   - Utilisez les chemins de Jenkinsfile appropriés pour chaque service
+2. **Create Other Pipelines**
+   - Repeat the process for other services (UserSOA, EngagementSOA, SOA_eureka)
+   - Use the appropriate Jenkinsfile paths for each service
 
-## Exécution du projet
+## Project Execution
 
-Une fois que Minikube, kubectl et Jenkins sont installés et configurés, vous pouvez exécuter le projet:
+Once Minikube, kubectl, and Jenkins are installed and configured, you can run the project:
 
-1. **Démarrage de Minikube**
+1. **Start Minikube**
    ```powershell
    minikube start
    ```
 
-2. **Création du namespace**
+2. **Create the namespace**
    ```powershell
    kubectl apply -f k8s/namespace.yaml
    ```
 
-3. **Déploiement de l'infrastructure**
+3. **Deploy the infrastructure**
    ```powershell
    kubectl apply -f k8s/infrastructure/pvc/
    kubectl apply -f k8s/infrastructure/rbac/
    ```
 
-4. **Exécution des pipelines Jenkins**
-   - Accédez à Jenkins (http://localhost:8080/)
-   - Lancez les pipelines de build pour chaque service
+4. **Run Jenkins pipelines**
+   - Access Jenkins (http://localhost:8080/)
+   - Launch the build pipelines for each service
 
-5. **Vérification des déploiements**
+5. **Verify deployments**
    ```powershell
    kubectl get pods -n soa-microservices
    ```
 
-6. **Accès aux services**
+6. **Access services**
    ```powershell
    minikube service list -n soa-microservices
    ```
 
-## Dépannage
+## Troubleshooting
 
-### Problèmes courants avec Minikube
+### Common Issues with Minikube
 
-1. **Minikube ne démarre pas**
-   - Vérifiez que la virtualisation est activée dans le BIOS
-   - Essayez un autre pilote: `minikube start --driver=virtualbox` ou `minikube start --driver=docker`
+1. **Minikube doesn't start**
+   - Check that virtualization is enabled in the BIOS
+   - Try another driver: `minikube start --driver=virtualbox` or `minikube start --driver=docker`
 
-2. **Problèmes de mémoire**
-   - Augmentez la mémoire allouée: `minikube start --memory=4096`
+2. **Memory issues**
+   - Increase allocated memory: `minikube start --memory=4096`
 
-### Problèmes courants avec Jenkins
+### Common Issues with Jenkins
 
-1. **Jenkins ne démarre pas**
-   - Vérifiez les logs: `Get-Content "C:\Program Files\Jenkins\jenkins.err.log"`
-   - Vérifiez que Java est correctement installé: `java -version`
+1. **Jenkins doesn't start**
+   - Check the logs: `Get-Content "C:\Program Files\Jenkins\jenkins.err.log"`
+   - Verify that Java is correctly installed: `java -version`
 
-2. **Problèmes de connexion à Kubernetes**
-   - Vérifiez que le fichier kubeconfig est correctement configuré
-   - Vérifiez les permissions du service account Jenkins dans Kubernetes
+2. **Kubernetes connection issues**
+   - Check that the kubeconfig file is correctly configured
+   - Verify the permissions of the Jenkins service account in Kubernetes
 
-### Problèmes courants avec les pipelines
+### Common Issues with Pipelines
 
-1. **Échec de build Docker**
-   - Vérifiez que Docker est installé et accessible
-   - Vérifiez les credentials Docker Hub
+1. **Docker build failure**
+   - Check that Docker is installed and accessible
+   - Verify the Docker Hub credentials
 
-2. **Échec de déploiement Kubernetes**
-   - Vérifiez les permissions RBAC
-   - Vérifiez que les PVC sont créés: `kubectl get pvc -n soa-microservices`
+2. **Kubernetes deployment failure**
+   - Check RBAC permissions
+   - Verify that PVCs are created: `kubectl get pvc -n soa-microservices`
