@@ -72,7 +72,7 @@ The application follows a microservices architecture pattern with the following 
 
 ```
 SOA/
-├── SOA/                           # Eureka Server for service discovery
+├── EurekaSOA/                           # Eureka Server for service discovery
 │   ├── src/
 │   │   ├── main/
 │   │   │   ├── java/              # Java source files
