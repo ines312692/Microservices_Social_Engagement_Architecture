@@ -240,6 +240,7 @@ Once Minikube, kubectl, and Jenkins are installed and configured, you can run th
 1. **Minikube doesn't start**
    - Check that virtualization is enabled in the BIOS
    - Try another driver: `minikube start --driver=virtualbox` or `minikube start --driver=docker`
+   - Si vous utilisez Docker, connectez le réseau Minikube à Jenkins: docker network connect minikube jenkins
 
 2. **Memory issues**
    - Increase allocated memory: `minikube start --memory=4096`
@@ -249,10 +250,15 @@ Once Minikube, kubectl, and Jenkins are installed and configured, you can run th
 1. **Jenkins doesn't start**
    - Check the logs: `Get-Content "C:\Program Files\Jenkins\jenkins.err.log"`
    - Verify that Java is correctly installed: `java -version`
+   - Pour tester la connexion à Minikube depuis Jenkins (via Docker)
+     docker exec -it jenkins bash
+     curl -k https://minikube:8443/version
 
 2. **Kubernetes connection issues**
    - Check that the kubeconfig file is correctly configured
    - Verify the permissions of the Jenkins service account in Kubernetes
+   - Vérifiez que le fichier kubeconfig est bien configuré
+   - Vérifiez les permissions du service account Jenkins dans Kubernetes
 
 ### Common Issues with Pipelines
 
@@ -263,3 +269,10 @@ Once Minikube, kubectl, and Jenkins are installed and configured, you can run th
 2. **Kubernetes deployment failure**
    - Check RBAC permissions
    - Verify that PVCs are created: `kubectl get pvc -n soa-microservices`
+   - Pour diagnostiquer pourquoi le pipeline ne démarre ps :
+     `kubectl get pod -n <nom-du-namespace>`
+     `kubectl describe pod <nom-du-pod> -n <nom-du-namespace>`
+     `kubectl logs <nom-du-pod> -n <nom-du-namespace>`
+      `kubectl exec -it <pod-name> -n soa-microservices -- /bin/bash`
+     `tail -f /var/log/jenkins/jenkins.log `
+   
