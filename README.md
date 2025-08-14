@@ -1,5 +1,7 @@
 # SOA Microservices Project
 
+*Last Updated: August 14, 2025*
+
 This project is a microservices-based architecture built using **Spring Boot** and **Spring Cloud**. It implements a social networking platform with user management, messaging, and social engagement features.
 
 ## Project Overview
@@ -72,52 +74,76 @@ The application follows a microservices architecture pattern with the following 
 SOA/
 ├── SOA/                           # Eureka Server for service discovery
 │   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/              # Java source files
+│   │   │   └── resources/         # Configuration files
+│   │   └── test/
+│   │       └── java/              # Test files
 │   ├── Dockerfile
 │   └── build.gradle.kts
 │
 ├── UserSOA/                       # User management service
-│   ├── src/main/java/tn/ensit/soa/UserSOA/
-│   │   ├── user/                  # User management
-│   │   ├── profile/               # User profiles
-│   │   ├── friendrequest/         # Friend relationships
-│   │   └── UserSoaApplication.java
-│   ├── Dockerfile
-│   └── build.gradle.kts
+│   └── UserSOA/                   # Actual service implementation
+│       ├── src/
+│       │   ├── main/
+│       │   │   └── java/tn/ensit/soa/UserSOA/
+│       │   │       ├── user/                  # User management
+│       │   │       ├── profile/               # User profiles
+│       │   │       ├── friendrequest/         # Friend relationships
+│       │   │       └── UserSoaApplication.java
+│       │   └── test/                          # Test files
+│       ├── Dockerfile
+│       └── build.gradle.kts
 │
-├── chatSOA/ 
-     chatSOA              # Messaging service
-│   ├── src/main/java/tn/ensit/soa/chatSOA/
-│   │   ├── message/               # Message handling
-│   │   └── ChatSoaApplication.java
-│   ├── Dockerfile
-│   └── build.gradle.kts
+├── chatSOA/                       # Messaging service
+│   └── chatSOA/                   # Actual service implementation
+│       ├── src/
+│       │   ├── main/
+│       │   │   └── java/tn/ensit/soa/chatSOA/
+│       │   │       ├── message/               # Message handling
+│       │   │       └── ChatSoaApplication.java
+│       │   └── test/                          # Test files
+│       ├── Dockerfile
+│       └── build.gradle.kts
 │
-├── EngagementSOA/                 # Social engagement service
-│   ├── src/main/java/tn/ensit/soa/engagementSOA/
-│   │   ├── post/                  # Post management
-│   │   ├── comment/               # Comment functionality
-│   │   ├── like/                  # Like functionality
-│   │   └── EngagementSoaApplication.java
+├── engagementSOA/                 # Social engagement service
+│   ├── src/
+│   │   ├── main/
+│   │   │   ├── java/tn/ensit/soa/engagementSOA/
+│   │   │   │   ├── post/                  # Post management
+│   │   │   │   ├── comment/               # Comment functionality
+│   │   │   │   ├── like/                  # Like functionality
+│   │   │   │   └── EngagementSoaApplication.java
+│   │   │   └── resources/                 # Configuration files
+│   │   └── test/
+│   │       └── java/                      # Test files
 │   ├── Dockerfile
 │   └── build.gradle.kts
 │
 ├── helm_charts/                   # Helm charts for Kubernetes deployment
 │   ├── chat-soa/                  # Helm chart for ChatSOA service
+│   │   └── templates/             # Helm templates
 │   ├── engagement-soa/            # Helm chart for EngagementSOA service
+│   │   └── templates/             # Helm templates
 │   ├── eureka-server/             # Helm chart for Eureka Server
+│   │   └── templates/             # Helm templates
 │   └── user-soa/                  # Helm chart for UserSOA service
+│       └── templates/             # Helm templates
 │
 ├── k8s/                           # Kubernetes configuration files
-│   ├── infrastructure/
+│   ├── infrastructure/            # Infrastructure configurations
 │   │   ├── pvc/                   # Persistent Volume Claims
 │   │   └── rbac/                  # Role-Based Access Control
+│   ├── tools/                     # DevOps tools configurations
+│   │   └── sonarqube/             # SonarQube for code quality analysis
 │   ├── namespace.yaml
 │   └── networkpolicy.yaml
 │
 ├── Jenkins_pipelines/             # Jenkins CI/CD pipeline configurations
 │   ├── build/                     # Build pipelines for each service
 │   │   ├── SOA_eureka/            # Eureka Server build pipeline
-│   │   └── UserSOA/               # UserSOA build pipeline
+│   │   ├── UserSOA/               # UserSOA build pipeline
+│   │   └── chatSOA/               # ChatSOA build pipeline
 │   ├── deploy/                    # Deployment pipelines for each service
 │   │   ├── SOA_eureka/            # Eureka Server deployment pipeline
 │   │   ├── UserSOA/               # UserSOA deployment pipeline
@@ -126,7 +152,21 @@ SOA/
 │   └── jenkins-shared-lib/        # Shared Jenkins pipeline libraries
 │       └── vars/                  # Reusable pipeline functions
 │
-└── README.md
+├── Jenkins_As_Code/               # Jenkins configuration as code
+│   ├── config/                    # Jenkins configuration files
+│   ├── docker/                    # Docker configurations for Jenkins
+│   ├── helm/                      # Helm chart for Jenkins
+│   │   └── templates/             # Helm templates
+│   ├── k8s/                       # Kubernetes configurations for Jenkins
+│   │   ├── pod_templates/         # Pod templates for Jenkins agents
+│   │   ├── pvc/                   # Persistent Volume Claims
+│   │   └── rbac/                  # Role-Based Access Control
+│   └── scripts/                   # Utility scripts
+│
+├── build.sh                       # Build script
+├── docker-compose.yml             # Docker Compose configuration
+├── INSTALLATION.md                # Installation guide
+└── README.md                      # Project documentation
 ```
 
 ## Service Details
@@ -485,9 +525,15 @@ The current implementation focuses on functionality, but for production deployme
 
 ## Version History
 
-- **1.0.1** (2025-08-11): Enhanced CI/CD pipeline implementation
-  - Added Jenkins pipeline configurations for all services
-  - Implemented shared pipeline libraries for code reuse
-  - Optimized build process with caching and parallel execution
-  - Improved Docker image building with layer caching
+- **1.0.3** (2025-08-14): Project Structure Documentation Update
+  - Updated Project Structure section to accurately reflect current repository organization
+  - Fixed formatting issues in the directory tree representation
+  - Added missing directories and improved structure clarity
+
+- **1.0.2** (2025-08-14): Documentation update
+  - Updated README with current information
+  - Improved documentation clarity
+  - Added latest project details
+
+
 
