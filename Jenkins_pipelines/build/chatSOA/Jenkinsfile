@@ -9,7 +9,7 @@ pipeline {
   }
 
   parameters {
-    string(name: 'TARGET_BRANCH', defaultValue: 'feature/restructure-pipeline', description: 'Branche à builder')
+    string(name: 'TARGET_BRANCH', defaultValue: 'chore/update-chat-jenkinsfile', description: 'Branche à builder')
   }
 
   environment {
@@ -24,10 +24,6 @@ pipeline {
 
   options {
     skipDefaultCheckout(true)
-  }
-
-  triggers {
-    githubPush()
   }
 
   stages {
@@ -107,29 +103,6 @@ pipeline {
         }
       }
     }
-
-    stage('SonarQube Analysis') {
-      steps {
-        script {
-          try {
-            withSonarQubeEnv("${SONARQUBE_SERVER}") {
-              sh """
-                ./gradlew sonar \
-                  -Dsonar.projectKey=chatSOA \
-                  -Dsonar.java.binaries=build/classes/java/main \
-                  -Dsonar.junit.reportPaths=build/test-results/test \
-                  -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml
-              """
-            }
-          } catch (Exception e) {
-            echo "Erreur SonarQube : ${e.toString()}"
-            currentBuild.result = 'FAILURE'
-            throw e
-          }
-        }
-      }
-    }
-
     stage('Docker Build & Push') {
       steps {
         script {
