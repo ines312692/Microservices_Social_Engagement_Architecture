@@ -53,7 +53,7 @@ pipeline {
       }
     }
 
-    stage('Préparer Cache et Build Output') {
+    stage('Préparer Cache ') {
       steps {
         script {
           try {
