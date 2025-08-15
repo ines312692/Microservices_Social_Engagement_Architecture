@@ -64,7 +64,7 @@ pipeline {
                                 mkdir -p ${GRADLE_CACHE_PATH}
                             fi
                         """
-                        sh "chmod +x ./chatSOA/gradlew"
+                        sh "chmod +x ./gradlew"
                     }
                 } catch (Exception e) {
                     echo "Erreu préparation cache : ${e.toString()}"
