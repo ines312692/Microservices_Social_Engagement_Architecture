@@ -84,7 +84,7 @@ pipeline {
                      org.gradle.caching=true
                    """
                    sh """
-                     ./gradlew clean build --parallel --max-workers=6 \
+                     ./gradlew build --parallel --max-workers=6 \
                      --project-cache-dir=${GRADLE_CACHE_PATH} \
                      --build-cache --scan
                    """
