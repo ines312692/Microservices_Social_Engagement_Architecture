@@ -67,7 +67,7 @@ pipeline {
                         sh "chmod +x ./chatSOA/gradlew"
                     }
                 } catch (Exception e) {
-                    echo "Erreur préparation cache : ${e.toString()}"
+                    echo "Erreu préparation cache : ${e.toString()}"
                     currentBuild.result = 'FAILURE'
                     throw e
                 }
