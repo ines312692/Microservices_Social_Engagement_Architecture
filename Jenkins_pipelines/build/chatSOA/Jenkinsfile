@@ -8,15 +8,16 @@ pipeline {
     }
   }
 
+  parameters {
+    string(name: 'TARGET_BRANCH', defaultValue: 'feature/restructure-pipeline', description: 'Branche à builder')
+  }
+
   environment {
-    DOCKERHUB_USERNAME = credentials('dockerhub-username')
     DOCKERHUB_IMAGE = 'k-chatsoa'
     IMAGE_TAG = "${BUILD_NUMBER}-latest"
     DOCKER_BUILDKIT = '1'
     GRADLE_CACHE_PATH = '/mnt/gradle_cache'
-    ARTIFACTS_PVC_PATH = '/mnt/artifacts'
-    WORK_DIR = "${WORKSPACE}/chatSOA/chatSOA"
-    BRANCH_NAME = 'feature/restructure-pipeline'
+    GRADLE_USER_HOME = "${GRADLE_CACHE_PATH}"
     REPO_URL = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
     SONARQUBE_SERVER = 'sonarqube-local'
   }
@@ -25,94 +26,49 @@ pipeline {
     skipDefaultCheckout(true)
   }
 
+  triggers {
+    githubPush()
+  }
+
   stages {
 
     stage('Checkout') {
       steps {
-        container('git') {
-          script {
-            try {
-              echo "Début du Checkout depuis la branche ${BRANCH_NAME}"
-              retry(2) {
-                checkout([
-                  $class: 'GitSCM',
-                  branches: [[name: "*/${BRANCH_NAME}"]],
-                  userRemoteConfigs: [[url: "${REPO_URL}"]],
-                  extensions: [
-                    [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
-                    [$class: 'LocalBranch', localBranch: "${BRANCH_NAME}"]
-                  ]
-                ])
-              }
-              echo "Checkout effectué avec succès depuis ${BRANCH_NAME}"
-              if (env.DEBUG == 'true') { sh 'ls -la' }
-            } catch (Exception e) {
-              echo "Erreur dans le stage 'Checkout' : ${e.getMessage()}"
-              error("Échec du checkout Git")
+        script {
+          try {
+            echo "Checkout depuis la branche ${params.TARGET_BRANCH}"
+            retry(2) {
+              checkout([
+                $class: 'GitSCM',
+                branches: [[name: "*/${params.TARGET_BRANCH}"]],
+                userRemoteConfigs: [[url: "${REPO_URL}"]],
+                extensions: [
+                  [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
+                  [$class: 'LocalBranch', localBranch: "${params.TARGET_BRANCH}"]
+                ]
+              ])
             }
+          } catch (Exception e) {
+            echo "Erreur Checkout : ${e.toString()}"
+            currentBuild.result = 'FAILURE'
+            throw e
           }
         }
       }
     }
 
-    stage('Préparer Cache et Artifacts') {
+    stage('Préparer Cache et Build Output') {
       steps {
         script {
           try {
-            container('docker') {
-              sh """
+             sh """
+                if [ ! -d "${GRADLE_CACHE_PATH}" ]; then
                 mkdir -p ${GRADLE_CACHE_PATH}
-                mkdir -p ${ARTIFACTS_PVC_PATH}
-                chmod +x ./gradlew
-              """
-            }
+                fi
+                """
+            sh "chmod +x ./gradlew"
           } catch (Exception e) {
-            echo "Erreur dans le stage 'Préparer Cache et Artifacts' : ${e.message}"
-            error("Échec préparation cache/artifacts")
-          }
-        }
-      }
-    }
-
-    stage('Unit Tests') {
-      when { changeset "**/*.java" }
-      steps {
-        script {
-          try {
-            dir("${WORK_DIR}") {
-              sh './gradlew test jacocoTestReport --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}'
-            }
-          } catch (Exception e) {
-            echo "Erreur dans le stage 'Unit Tests' : ${e.message}"
-            error("Échec des tests unitaires")
-          }
-        }
-      }
-    }
-
-    stage('SonarQube Analysis') {
-      when {
-        anyOf {
-          changeset "**/*.java"
-          changeset "**/Dockerfile"
-          changeset "**/*.gradle"
-          changeset "**/gradle.properties"
-        }
-      }
-      steps {
-        script {
-          try {
-            dir("${WORK_DIR}") {
-              withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                sh './gradlew sonar \
-                      -Dsonar.projectKey=chatSOA \
-                      -Dsonar.java.binaries=build/classes/java/main \
-                      -Dsonar.junit.reportPaths=build/test-results/test \
-                      -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml'
-              }
-            }
-          } catch (Exception e) {
-            echo "Erreur détaillée: ${e.toString()}"
+            echo "Erreur préparation cache : ${e.toString()}"
             currentBuild.result = 'FAILURE'
             throw e
           }
@@ -124,35 +80,11 @@ pipeline {
       steps {
         script {
           try {
-            dir("${WORK_DIR}") {
-              sh """
-                export GRADLE_USER_HOME=${GRADLE_CACHE_PATH}
-                ./gradlew build --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}
-              """
-            }
+            sh """
+              ./gradlew clean build --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}
+            """
           } catch (Exception e) {
-            echo "Erreur dans le stage 'Build Gradle' : ${e.message}"
-            error("Échec de la compilation Gradle")
-          }
-        }
-      }
-    }
-
-    stage('Docker Login') {
-      steps {
-        script {
-          try {
-            container('docker') {
-              withCredentials([usernamePassword(
-                credentialsId: 'dockerhub-creds',
-                usernameVariable: 'USERNAME',
-                passwordVariable: 'PASSWORD'
-              )]) {
-                sh 'echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin'
-              }
-            }
-          } catch (Exception e) {
-            echo "Erreur détaillée: ${e.toString()}"
+            echo "Erreur Build Gradle : ${e.toString()}"
             currentBuild.result = 'FAILURE'
             throw e
           }
@@ -160,60 +92,68 @@ pipeline {
       }
     }
 
-     stage('Build Docker Image') {
-          steps {
-            script {
-              try {
-                container('docker') {
-                  dir("${WORK_DIR}") {
-                    sh """
-                      docker buildx build --push \
-                        --build-arg BUILDKIT_INLINE_CACHE=1 \
-                        --cache-from=type=registry,ref=${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest \
-                        -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
-                        -t ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest .
-                    """
-                  }
-                }
-              } catch (Exception e) {
-                echo "Erreur dans le stage 'Build Docker Image' : ${e.message}"
-                error("Échec de la construction de l'image Docker")
-              }
-            }
-          }
-        }
-
-    stage('Save Artifacts') {
+    stage('Unit Tests') {
       steps {
         script {
           try {
-            container('docker') {
-              sh """
-                mkdir -p ${ARTIFACTS_PVC_PATH}/chatsoa-${BUILD_NUMBER}
-                cp -r ${WORK_DIR}/build/libs/*.jar ${ARTIFACTS_PVC_PATH}/chatsoa-${BUILD_NUMBER}/ || true
-              """
-            }
+            sh """
+              ./gradlew test jacocoTestReport --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}
+            """
           } catch (Exception e) {
-            echo "Erreur dans le stage 'Save Artifacts' : ${e.message}"
-            error("Échec de la sauvegarde des artefacts")
+            echo "Erreur Unit Tests : ${e.toString()}"
+            currentBuild.result = 'FAILURE'
+            throw e
           }
         }
       }
     }
 
-    stage('Nettoyage') {
+    stage('SonarQube Analysis') {
       steps {
         script {
           try {
-            container('docker') {
+            withSonarQubeEnv("${SONARQUBE_SERVER}") {
               sh """
-                docker buildx rm mybuilder || true
-                docker image prune -af || true
+                ./gradlew sonar \
+                  -Dsonar.projectKey=chatSOA \
+                  -Dsonar.java.binaries=build/classes/java/main \
+                  -Dsonar.junit.reportPaths=build/test-results/test \
+                  -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml
               """
             }
           } catch (Exception e) {
-            echo "Erreur dans le stage 'Nettoyage' : ${e.message}"
-            error("Échec lors du nettoyage")
+            echo "Erreur SonarQube : ${e.toString()}"
+            currentBuild.result = 'FAILURE'
+            throw e
+          }
+        }
+      }
+    }
+
+    stage('Docker Build & Push') {
+      steps {
+        script {
+          try {
+            withCredentials([usernamePassword(
+              credentialsId: 'dockerhub-creds',
+              usernameVariable: 'DOCKER_USER',
+              passwordVariable: 'DOCKER_PASS'
+            )]) {
+              sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
+              sh """
+                docker buildx build --push \
+                  --build-arg BUILDKIT_INLINE_CACHE=1 \
+                  --cache-from=type=registry,ref=$DOCKER_USER/${DOCKERHUB_IMAGE}:latest \
+                  -t $DOCKER_USER/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
+                  -t $DOCKER_USER/${DOCKERHUB_IMAGE}:latest \
+                  --file chatSOA/Dockerfile \
+                  .
+              """
+            }
+          } catch (Exception e) {
+            echo "Erreur Docker Build & Push : ${e.toString()}"
+            currentBuild.result = 'FAILURE'
+            throw e
           }
         }
       }
