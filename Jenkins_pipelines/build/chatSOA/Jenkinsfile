@@ -127,7 +127,7 @@ pipeline {
                          --cache-from=type=registry,ref=$DOCKER_USER/${DOCKERHUB_IMAGE}:latest \
                          -t $DOCKER_USER/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
                          -t $DOCKER_USER/${DOCKERHUB_IMAGE}:latest \
-                         --file chatSOA/Dockerfile \
+                         --Dockerfile \
                          .
                      """
                    }
