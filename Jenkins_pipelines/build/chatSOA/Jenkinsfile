@@ -17,14 +17,14 @@ pipeline {
     }
 
     environment {
-        DOCKERHUB_IMAGE     = 'k-chatsoa'
-        IMAGE_TAG           = "${BUILD_NUMBER}-latest"
-        DOCKER_BUILDKIT     = '1'
-        GRADLE_CACHE_PATH   = '/mnt/gradle_cache'
-        GRADLE_USER_HOME    = "${GRADLE_CACHE_PATH}"
-        REPO_URL            = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
-        SONARQUBE_SERVER    = 'sonarqube-local'
-        WORK_DIR            = "${WORKSPACE}/chatSOA/chatSOA"
+        DOCKERHUB_IMAGE   = 'k-chatsoa'
+        IMAGE_TAG         = "${BUILD_NUMBER}-latest"
+        DOCKER_BUILDKIT   = '1'
+        GRADLE_CACHE_PATH = '/mnt/gradle_cache'
+        GRADLE_USER_HOME  = "${GRADLE_CACHE_PATH}"
+        REPO_URL          = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
+        SONARQUBE_SERVER  = 'sonarqube-local'
+        WORK_DIR          = "${WORKSPACE}/chatSOA/chatSOA"
     }
 
     options {
@@ -131,8 +131,11 @@ pipeline {
                 }
             }
         }
+
         stage('Docker Build & Push') {
-                    steps {
+            steps {
+                container('docker') {
+                    dir("${WORK_DIR}") {
                         script {
                             try {
                                 withCredentials([usernamePassword(
@@ -158,9 +161,9 @@ pipeline {
                             }
                         }
                     }
+                }
+            }
         }
-
-
     }
 
     post {
