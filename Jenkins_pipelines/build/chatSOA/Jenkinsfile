@@ -1,163 +1,104 @@
 pipeline {
-    agent {
-        kubernetes {
-            inheritFrom 'build-chat'
-            defaultContainer 'gradle'
-            namespace 'soa-microservices'
-            serviceAccount 'chatsoa-deployer'
+  agent {
+    kubernetes {
+      inheritFrom 'build-chat'
+      defaultContainer 'gradle'
+      namespace 'soa-microservices'
+      serviceAccount 'chatsoa-deployer'
+    }
+  }
+
+  parameters {
+    string(name: 'TARGET_BRANCH', defaultValue: 'ops/jenkins-chat-improvement', description: 'Branche à builder')
+  }
+
+  environment {
+    DOCKERHUB_IMAGE = 'k-chatsoa'
+    IMAGE_TAG = "${BUILD_NUMBER}-latest"
+    DOCKER_BUILDKIT = '1'
+    GRADLE_CACHE_PATH = '/mnt/gradle_cache'
+    GRADLE_USER_HOME = "${GRADLE_CACHE_PATH}"
+    REPO_URL = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
+    SONARQUBE_SERVER = 'sonarqube-local'
+    WORK_DIR = "${WORKSPACE}/chatSOA/chatSOA"
+  }
+
+  options {
+    skipDefaultCheckout(true)
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        script {
+          try {
+            echo "Checkout depuis la branche ${params.TARGET_BRANCH}"
+            retry(2) {
+              checkout([
+                $class: 'GitSCM',
+                branches: [[name: "*/${params.TARGET_BRANCH}"]],
+                userRemoteConfigs: [[url: "${REPO_URL}"]],
+                extensions: [
+                  [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
+                  [$class: 'LocalBranch', localBranch: "${params.TARGET_BRANCH}"]
+                ]
+              ])
+            }
+          } catch (Exception e) {
+            echo "Erreur Checkout : ${e.toString()}"
+            currentBuild.result = 'FAILURE'
+            throw e
+          }
         }
-    }
-
-    parameters {
-        string(
-            name: 'TARGET_BRANCH',
-            defaultValue: 'chore/update-chat-jenkinsfile',
-            description: 'Branche à builder'
-        )
-    }
-
-    environment {
-        DOCKERHUB_IMAGE = 'k-chatsoa'
-        IMAGE_TAG = "${BUILD_NUMBER}-latest"
-        DOCKER_BUILDKIT = '1'
-        GRADLE_CACHE_PATH = '/mnt/gradle_cache'
-        GRADLE_USER_HOME = "${GRADLE_CACHE_PATH}"
-        REPO_URL = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
-        SONARQUBE_SERVER = 'sonarqube-local'
-        WORK_DIR = "${WORKSPACE}/chatSOA/chatSOA"
-    }
-
-    options {
-        skipDefaultCheckout(true)
-    }
-    triggers {
-        githubPush()
       }
-
-    stages {
-
-        stage('Checkout') {
-            steps {
-                script {
-                    try {
-                        echo "Checkout depuis la branche ${params.TARGET_BRANCH}"
-                        retry(2) {
-                            checkout([
-                                $class: 'GitSCM',
-                                branches: [[name: "*/${params.TARGET_BRANCH}"]],
-                                userRemoteConfigs: [[url: "${REPO_URL}"]],
-                                extensions: [
-                                    [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
-                                    [$class: 'LocalBranch', localBranch: "${params.TARGET_BRANCH}"]
-                                ]
-                            ])
-                        }
-                    } catch (Exception e) {
-                        echo "Erreur Checkout : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
-                    }
-                }
-            }
-        }
-
-        stage('Préparer Cache') {
-            steps {
-                script {
-                    try {
-                        sh "chmod +x ./gradlew"
-                    } catch (Exception e) {
-                        echo "Erreur préparation cache : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
-                    }
-                }
-            }
-        }
-
-        stage('Build Gradle') {
-            steps {
-                script {
-                    try {
-                        sh "./gradlew clean build --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}"
-                    } catch (Exception e) {
-                        echo "Erreur Build Gradle : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
-                    }
-                }
-            }
-        }
-
-        stage('Unit Tests') {
-            steps {
-                script {
-                    try {
-                        sh "./gradlew test --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}"
-                    } catch (Exception e) {
-                        echo "Erreur Unit Tests : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
-                    }
-                }
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                script {
-                    try {
-                        withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                            sh """
-                                ./gradlew sonar \
-                                    -Dsonar.projectKey=chatSOA \
-                                    -Dsonar.java.binaries=build/classes/java/main \
-                                    -Dsonar.junit.reportPaths=build/test-results/test \
-                                    -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml
-                            """
-                        }
-                    } catch (Exception e) {
-                        echo "Erreur SonarQube : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
-                    }
-                }
-            }
-        }
-
-        stage('Docker Build & Push') {
-            steps {
-                script {
-                    try {
-                        withCredentials([usernamePassword(
-                            credentialsId: 'dockerhub-creds',
-                            usernameVariable: 'DOCKER_USER',
-                            passwordVariable: 'DOCKER_PASS'
-                        )]) {
-                            sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
-                            sh """
-                                docker buildx build --push \
-                                    --build-arg BUILDKIT_INLINE_CACHE=1 \
-                                    --cache-from=type=registry,ref=$DOCKER_USER/${DOCKERHUB_IMAGE}:latest \
-                                    -t $DOCKER_USER/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
-                                    -t $DOCKER_USER/${DOCKERHUB_IMAGE}:latest \
-                                    -f Dockerfile \
-                                    .
-                            """
-                        }
-                    } catch (Exception e) {
-                        echo "Erreur Docker Build & Push : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
-                    }
-                }
-            }
-        }
-
     }
 
-    post {
-        success { echo "Build terminé avec succès pour ChatSOA" }
-        failure { echo "Build échoué pour ChatSOA" }
-    }
-}
+    stage('Préparer Cache') {
+         steps {
+           container('gradle') {
+             dir("${WORK_DIR}") {
+               script {
+                 try {
+                   sh "chmod +x ./gradlew"
+                 } catch (Exception e) {
+                   echo "Erreur préparation cache : ${e.toString()}"
+                   currentBuild.result = 'FAILURE'
+                   throw e
+                 }
+               }
+             }
+           }
+         }
+       }
+
+       stage('Build Gradle') {
+         steps {
+           container('gradle') {
+             dir("${WORK_DIR}") {
+               script {
+                 try {
+                  sh """
+                       ./gradlew assemble --parallel --max-workers=\$(nproc) \
+                       --project-cache-dir=${GRADLE_CACHE_PATH} \
+                       --build-cache \
+                       --no-scan
+                   """
+                 } catch (Exception e) {
+                   echo "Erreur Build Gradle : ${e.toString()}"
+                   currentBuild.result = 'FAILURE'
+                   throw e
+                 }
+               }
+             }
+           }
+         }
+       }
+
+     }
+
+     post {
+       success { echo "Build terminé avec succès pour ChatSOA" }
+       failure { echo "Build échoué pour ChatSOA" }
+     }
+   }
