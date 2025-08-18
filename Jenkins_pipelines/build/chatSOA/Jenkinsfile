@@ -157,7 +157,6 @@ pipeline {
                                         """--build-arg BUILDKIT_INLINE_CACHE=1 \
                                            --cache-from=inestmimi123/k-chatsoa:latest \
                                            --cache-from=inestmimi123/k-chatsoa:cache \
-                                           --target=production \
                                            -f Dockerfile ."""
                                     )
                                     parallel(
