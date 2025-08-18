@@ -84,7 +84,6 @@ pipeline {
                        --project-cache-dir=${GRADLE_CACHE_PATH} \
                        --daemon \
                        --configure-on-demand \
-                       --build-cache \
                        --no-scan
                    """
                  } catch (Exception e) {
