@@ -69,7 +69,7 @@ pipeline {
                 container('gradle') {
                     script {
                         try {
-                            sh "chmod +x ./gradlew"
+                            sh "chmod +x chatSOA/chatSOA/gradlew"
                             sh "[ -d ${GRADLE_CACHE_PATH} ] || mkdir -p ${GRADLE_CACHE_PATH}"
                         } catch (Exception e) {
                             echo "Erreur préparation cache : ${e.toString()}"
