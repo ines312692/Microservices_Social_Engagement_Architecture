@@ -132,6 +132,7 @@ pipeline {
             }
         }
 
+
         stage('Docker Build & Push') {
             steps {
                 container('docker') {
@@ -139,15 +140,14 @@ pipeline {
                         script {
                             try {
                                 docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                                    def imageName = "inestmimi123/k-chatsoa:${IMAGE_TAG}"
 
-                                   sh """
-                                                           docker buildx build --push \
-                                                               -t inestmimi123/k-chatsoa:${IMAGE_TAG} \
-                                                               -t inestmimi123/k-chatsoa:latest \
-                                                               --build-arg BUILDKIT_INLINE_CACHE=1 \
-                                                               --cache-from=inestmimi123/k-chatsoa:latest \
-                                                               -f Dockerfile .
-                                                       """
+                                    def appImage = docker.build(
+                                        imageName,
+                                        "--build-arg BUILDKIT_INLINE_CACHE=1 --cache-from=inestmimi123/k-chatsoa:latest -f Dockerfile ."
+                                    )
+                                    appImage.push()
+                                    appImage.push('latest')
                                 }
                             } catch (Exception e) {
                                 echo "Erreur Docker Build & Push : ${e.toString()}"
