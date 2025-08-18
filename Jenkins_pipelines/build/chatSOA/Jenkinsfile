@@ -35,32 +35,32 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                script {
-                    try {
-                        echo "Checkout depuis la branche ${params.TARGET_BRANCH}"
-                        retry(2) {
-                            checkout([
-                                $class: 'GitSCM',
-                                branches: [[name: "*/${params.TARGET_BRANCH}"]],
-                                userRemoteConfigs: [[url: "${REPO_URL}"]],
-                                extensions: [
-                                    [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
-                                    [$class: 'LocalBranch', localBranch: "${params.TARGET_BRANCH}"],
-                                    [$class: 'CleanBeforeCheckout'],
-                                    [$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [
-                                        [path: 'chatSOA/']
-                                    ]]
-                                ]
-                            ])
+                container('gradle') {
+                    script {
+                        try {
+                            echo "Checkout depuis la branche ${params.TARGET_BRANCH}"
+                            retry(2) {
+                                checkout([
+                                    $class: 'GitSCM',
+                                    branches: [[name: "*/${params.TARGET_BRANCH}"]],
+                                    userRemoteConfigs: [[url: "${REPO_URL}"]],
+                                    extensions: [
+                                        [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
+                                        [$class: 'LocalBranch', localBranch: "${params.TARGET_BRANCH}"],
+                                        [$class: 'CleanBeforeCheckout']
+                                    ]
+                                ])
+                            }
+                        } catch (Exception e) {
+                            echo "Erreur Checkout : ${e.toString()}"
+                            currentBuild.result = 'FAILURE'
+                            throw e
                         }
-                    } catch (Exception e) {
-                        echo "Erreur Checkout : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
                     }
                 }
             }
         }
+
 
         stage('Préparer Cache') {
             steps {
