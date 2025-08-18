@@ -48,11 +48,12 @@ pipeline {
                                         [$class: 'LocalBranch', localBranch: "${params.TARGET_BRANCH}"],
                                         [$class: 'CleanBeforeCheckout'],
                                         [$class: 'SparseCheckoutPaths', sparseCheckoutPaths: [
-                                            [path: 'chatSOA/chatSOA/']
+                                            [path: 'chatSOA/chatSOA/*']
                                         ]]
                                     ]
                                 ])
                             }
+                             sh "ls -la chatSOA/chatSOA"
                         } catch (Exception e) {
                             echo "Erreur Checkout : ${e.toString()}"
                             currentBuild.result = 'FAILURE'
