@@ -139,10 +139,13 @@ pipeline {
                         script {
                             try {
                                 docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+
+                                    def imageName = "inestmimi123/${DOCKERHUB_IMAGE}:${IMAGE_TAG}"
                                     def appImage = docker.build(
-                                        "${DOCKER_USER}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}",
-                                        "-f Dockerfile --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from=${DOCKER_USER}/${DOCKERHUB_IMAGE}:latest ."
+                                        imageName,
+                                        "-f Dockerfile --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from=inestmimi123/${DOCKERHUB_IMAGE}:latest ."
                                     )
+
                                     appImage.push()
                                     appImage.push('latest')
                                 }
@@ -156,6 +159,7 @@ pipeline {
                 }
             }
         }
+
 
     }
 
