@@ -61,6 +61,7 @@ pipeline {
                script {
                  try {
                    sh "chmod +x ./gradlew"
+                   sh "mkdir -p ${GRADLE_CACHE_PATH}"
                  } catch (Exception e) {
                    echo "Erreur préparation cache : ${e.toString()}"
                    currentBuild.result = 'FAILURE'
