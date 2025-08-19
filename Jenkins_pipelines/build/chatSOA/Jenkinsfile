@@ -171,18 +171,16 @@ pipeline {
                 }
             }
         }
-        stage('Deploy to Kubernetes') {
+        stage('Deploy to Minikube') {
             steps {
                 container('kubectl') {
                     script {
                         try {
-                            withCredentials([file(credentialsId: 'minikubeconfig', variable: 'KUBECONFIG')]) {
-                                sh '''
-                                  echo "Using kubeconfig: $KUBECONFIG"
-                                  kubectl --namespace=soa-microservices set image deployment/chatsoa-deployment chatsoa-container=inestmimi123/k-chatsoa:$IMAGE_TAG --record
-                                  kubectl --namespace=soa-microservices rollout status deployment/chatsoa-deployment
-                                '''
-                            }
+                            sh '''
+                              echo "Déploiement vers Minikube"
+                              kubectl --namespace=soa-microservices set image deployment/chatsoa-deployment chatsoa-container=inestmimi123/k-chatsoa:$IMAGE_TAG --record
+                              kubectl --namespace=soa-microservices rollout status deployment/chatsoa-deployment
+                            '''
                         } catch (Exception e) {
                             echo "Erreur déploiement : ${e.toString()}"
                             currentBuild.result = 'FAILURE'
@@ -192,6 +190,7 @@ pipeline {
                 }
             }
         }
+
 
 
 
