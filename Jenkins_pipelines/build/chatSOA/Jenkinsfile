@@ -155,6 +155,7 @@ pipeline {
                                            -f Dockerfile ."""
                                     )
 
+
                                     parallel(
                                         "Push Tagged": { appImage.push() },
                                         "Push Latest": { appImage.push('latest') }
@@ -173,15 +174,12 @@ pipeline {
 
         stage('Deploy to Minikube') {
             steps {
-                container('kubectl') {
+
                     withCredentials([file(credentialsId: 'minikubeconfig', variable: 'KUBECONFIG')]) {
                         script {
                             try {
-                                // Vérification de la connexion
                                 sh 'kubectl version --short'
 
-
-                                // Déploiement
                                 sh '''
                                     kubectl apply -f k8s/chatSOA/deployment.yaml --namespace=soa-microservices
                                     kubectl apply -f k8s/chatSOA/service.yaml --namespace=soa-microservices
@@ -193,7 +191,7 @@ pipeline {
                             }
                         }
                     }
-                }
+
             }
         }
 
