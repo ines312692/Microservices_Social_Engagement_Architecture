@@ -162,6 +162,7 @@ pipeline {
                                             --severity CRITICAL,HIGH \
                                             --exit-code 1 \
                                             --no-progress \
+                                            --severity CRITICAL
                                             ${imageName}
                                     """
                                     parallel(
