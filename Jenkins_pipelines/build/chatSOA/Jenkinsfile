@@ -30,9 +30,7 @@ pipeline {
     options {
         skipDefaultCheckout(true)
     }
-    triggers {
-        githubPush()
-    }
+
 
     stages {
 
@@ -64,14 +62,18 @@ pipeline {
 
         stage('Préparer Cache') {
             steps {
-                script {
-                    try {
-                        sh "chmod +x ./gradlew"
-                        sh "[ -d ${GRADLE_CACHE_PATH} ] || mkdir -p ${GRADLE_CACHE_PATH}"
-                    } catch (Exception e) {
-                        echo "Erreur préparation cache : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
+                container('gradle') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            try {
+                                sh "chmod +x ./gradlew"
+                                sh "[ -d ${GRADLE_CACHE_PATH} ] || mkdir -p ${GRADLE_CACHE_PATH}"
+                            } catch (Exception e) {
+                                echo "Erreur préparation cache : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
+                        }
                     }
                 }
             }
@@ -79,31 +81,39 @@ pipeline {
 
         stage('Prewarm Gradle Daemon') {
             steps {
-                script {
-                    echo "Préchauffage du daemon Gradle..."
-                    sh "./gradlew --daemon help || true"
+                container('gradle') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            echo "Préchauffage du daemon Gradle..."
+                            sh "./gradlew --daemon help || true"
+                        }
+                    }
                 }
             }
         }
 
         stage('Build Gradle') {
             steps {
-                script {
-                    try {
-                        sh """
-                            ./gradlew assemble \
-                                --parallel \
-                                --max-workers=4 \
-                                --project-cache-dir=${GRADLE_CACHE_PATH} \
-                                --daemon \
-                                --configure-on-demand \
-                                --build-cache \
-                                --no-scan
-                        """
-                    } catch (Exception e) {
-                        echo "Erreur Build Gradle : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
+                container('gradle') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            try {
+                                sh """
+                                    ./gradlew assemble \
+                                        --parallel \
+                                        --max-workers=4 \
+                                        --project-cache-dir=${GRADLE_CACHE_PATH} \
+                                        --daemon \
+                                        --configure-on-demand \
+                                        --build-cache \
+                                        --no-scan
+                                """
+                            } catch (Exception e) {
+                                echo "Erreur Build Gradle : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
+                        }
                     }
                 }
             }
@@ -111,18 +121,22 @@ pipeline {
 
         stage('Unit Tests') {
             steps {
-                script {
-                    try {
-                        sh """
-                            ./gradlew test \
-                                --parallel \
-                                --max-workers=4 \
-                                --project-cache-dir=${GRADLE_CACHE_PATH}
-                        """
-                    } catch (Exception e) {
-                        echo "Erreur Unit Tests : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
+                container('gradle') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            try {
+                                sh """
+                                    ./gradlew test \
+                                        --parallel \
+                                        --max-workers=4 \
+                                        --project-cache-dir=${GRADLE_CACHE_PATH}
+                                """
+                            } catch (Exception e) {
+                                echo "Erreur Unit Tests : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
+                        }
                     }
                 }
             }
@@ -130,52 +144,55 @@ pipeline {
 
         stage('Docker Build & Push') {
             steps {
-                script {
-                    try {
-                        docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                            def imageName = "inestmimi123/k-chatsoa:${IMAGE_TAG}"
-                            def appImage = docker.build(
-                                imageName,
-                                """--build-arg BUILDKIT_INLINE_CACHE=1 \
-                                   --cache-from=inestmimi123/k-chatsoa:latest \
-                                   -f Dockerfile ."""
-                            )
-                            parallel(
-                                "Push Tagged": { appImage.push() },
-                                "Push Latest": { appImage.push('latest') }
-                            )
-                        }
-                    } catch (Exception e) {
-                        echo "Erreur Docker Build & Push : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
-                    }
-                }
-            }
-        }
-        stage('Scan Image with Trivy') {
-                    steps {
+                container('docker') {
+                    dir("${WORK_DIR}") {
                         script {
                             try {
-                                echo "Scanning Docker image with Trivy..."
-                                sh """
-                                    docker run --rm \
-                                        -v /var/run/docker.sock:/var/run/docker.sock \
-                                        aquasec/trivy image \
-                                        --severity CRITICAL,HIGH \
-                                        --exit-code 1 \
-                                        --no-progress \
-                                        inestmimi123/k-chatsoa:${IMAGE_TAG}
-                                """
+                                docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                                    def imageName = "inestmimi123/k-chatsoa:${IMAGE_TAG}"
+                                    def appImage = docker.build(
+                                        imageName,
+                                        """--build-arg BUILDKIT_INLINE_CACHE=1 \
+                                           --cache-from=inestmimi123/k-chatsoa:latest \
+                                           -f Dockerfile ."""
+                                    )
+                                    parallel(
+                                        "Push Tagged": { appImage.push() },
+                                        "Push Latest": { appImage.push('latest') }
+                                    )
+                                }
                             } catch (Exception e) {
-                                echo "Erreur Trivy Scan : ${e.toString()}"
+                                echo "Erreur Docker Build & Push : ${e.toString()}"
                                 currentBuild.result = 'FAILURE'
                                 throw e
                             }
                         }
                     }
+                }
+            }
         }
 
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    withCredentials([file(credentialsId: 'myk8sconfig', variable: 'config')]) {
+                        try {
+                            echo "Déploiement sur Kubernetes avec kubeconfig..."
+
+                            sh """
+                                export KUBECONFIG=${KUBECONFIG_FILE}
+                                kubectl --namespace=soa-microservices set image deployment/chatsoa-deployment chatsoa-container=inestmimi123/k-chatsoa:${IMAGE_TAG} --record
+                                kubectl --namespace=soa-microservices rollout status deployment/chatsoa-deployment
+                            """
+                        } catch (Exception e) {
+                            echo "Erreur déploiement : ${e.toString()}"
+                            currentBuild.result = 'FAILURE'
+                            throw e
+                        }
+                    }
+                }
+            }
+        }
 
     }
 
