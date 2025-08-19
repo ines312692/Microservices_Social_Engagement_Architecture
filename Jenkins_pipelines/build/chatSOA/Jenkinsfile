@@ -142,35 +142,7 @@ pipeline {
             }
         }
 
-        stage('Docker Build & Push') {
-            steps {
-                container('docker') {
-                    dir("${WORK_DIR}") {
-                        script {
-                            try {
-                                docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                    def imageName = "inestmimi123/k-chatsoa:${IMAGE_TAG}"
-                                    def appImage = docker.build(
-                                        imageName,
-                                        """--build-arg BUILDKIT_INLINE_CACHE=1 \
-                                           --cache-from=inestmimi123/k-chatsoa:latest \
-                                           -f Dockerfile ."""
-                                    )
-                                    parallel(
-                                        "Push Tagged": { appImage.push() },
-                                        "Push Latest": { appImage.push('latest') }
-                                    )
-                                }
-                            } catch (Exception e) {
-                                echo "Erreur Docker Build & Push : ${e.toString()}"
-                                currentBuild.result = 'FAILURE'
-                                throw e
-                            }
-                        }
-                    }
-                }
-            }
-        }
+
         stage('Deploy to Minikube') {
             steps {
                 container('kubectl') {
@@ -178,7 +150,7 @@ pipeline {
                         try {
                             sh '''
                               echo "Déploiement vers Minikube"
-                              kubectl --namespace=soa-microservices set image deployment/chatsoa-deployment chatsoa-container=inestmimi123/k-chatsoa:$IMAGE_TAG --record
+                              kubectl --namespace=soa-microservices set image deployment/chatsoa-deployment chatsoa-container=inestmimi123/k-chatsoa:latest --record
                               kubectl --namespace=soa-microservices rollout status deployment/chatsoa-deployment
                             '''
                         } catch (Exception e) {
