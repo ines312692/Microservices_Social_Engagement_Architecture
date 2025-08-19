@@ -176,7 +176,7 @@ pipeline {
                 container('kubectl') {
                     script {
                         try {
-                            withCredentials([file(credentialsId: 'myk8sconfig', variable: 'KUBECONFIG')]) {
+                            withCredentials([file(credentialsId: 'minikubeconfig', variable: 'KUBECONFIG')]) {
                                 sh '''
                                   echo "Using kubeconfig: $KUBECONFIG"
                                   kubectl --namespace=soa-microservices set image deployment/chatsoa-deployment chatsoa-container=inestmimi123/k-chatsoa:$IMAGE_TAG --record
