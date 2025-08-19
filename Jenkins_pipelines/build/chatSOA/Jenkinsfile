@@ -174,16 +174,15 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                script {
-                    withCredentials([file(credentialsId: 'myk8sconfig', variable: 'config')]) {
+                container('kubectl') {
+                    script {
                         try {
-                            echo "Déploiement sur Kubernetes avec kubeconfig..."
-
-                            sh """
-                                export KUBECONFIG=${config}
-                                kubectl --namespace=soa-microservices set image deployment/chatsoa-deployment chatsoa-container=inestmimi123/k-chatsoa:${IMAGE_TAG} --record
-                                kubectl --namespace=soa-microservices rollout status deployment/chatsoa-deployment
-                            """
+                            withCredentials([file(credentialsId: 'myk8sconfig', variable: 'KUBECONFIG')]) {
+                                sh '''
+                                  kubectl --namespace=soa-microservices set image deployment/chatsoa-deployment chatsoa-container=inestmimi123/k-chatsoa:$IMAGE_TAG --record
+                                  kubectl --namespace=soa-microservices rollout status deployment/chatsoa-deployment
+                                '''
+                            }
                         } catch (Exception e) {
                             echo "Erreur déploiement : ${e.toString()}"
                             currentBuild.result = 'FAILURE'
@@ -193,6 +192,7 @@ pipeline {
                 }
             }
         }
+
 
     }
 
