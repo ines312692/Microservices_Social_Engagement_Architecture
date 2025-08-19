@@ -180,7 +180,7 @@ pipeline {
                             echo "Déploiement sur Kubernetes avec kubeconfig..."
 
                             sh """
-                                export KUBECONFIG=${KUBECONFIG_FILE}
+                                export KUBECONFIG=${config}
                                 kubectl --namespace=soa-microservices set image deployment/chatsoa-deployment chatsoa-container=inestmimi123/k-chatsoa:${IMAGE_TAG} --record
                                 kubectl --namespace=soa-microservices rollout status deployment/chatsoa-deployment
                             """
