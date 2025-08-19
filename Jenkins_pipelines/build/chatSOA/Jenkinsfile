@@ -174,21 +174,29 @@ pipeline {
         stage('Deploy to Minikube') {
             steps {
                 container('kubectl') {
-                    script {
-                        try {
-                            sh '''
-                              kubectl apply -f k8s/chatSOA/deployment.yaml --namespace=soa-microservices
-                              kubectl apply -f k8s/chatSOA/service.yaml --namespace=soa-microservices
-                            '''
-                        } catch (Exception e) {
-                            echo "Erreur déploiement : ${e.toString()}"
-                            currentBuild.result = 'FAILURE'
-                            throw e
+                    withCredentials([file(credentialsId: 'minikubeconfig', variable: 'KUBECONFIG')]) {
+                        script {
+                            try {
+                                // Vérification de la connexion
+                                sh 'kubectl version --short'
+
+
+                                // Déploiement
+                                sh '''
+                                    kubectl apply -f k8s/chatSOA/deployment.yaml --namespace=soa-microservices
+                                    kubectl apply -f k8s/chatSOA/service.yaml --namespace=soa-microservices
+                                '''
+                            } catch (Exception e) {
+                                echo "Erreur déploiement : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
                         }
                     }
                 }
             }
         }
+
 
     }
 
