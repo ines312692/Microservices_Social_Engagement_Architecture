@@ -32,6 +32,21 @@ pipeline {
     }
 
     stages {
+    stage('Test kubectl Access') {
+                steps {
+                    timeout(time: 2, unit: 'MINUTES') {
+                        container('kubectl') {
+                            sh '''
+                                echo "=== Testing kubectl container ==="
+                                echo "Current user: $(whoami)"
+                                echo "Current directory: $(pwd)"
+                                echo "kubectl version:"
+                                kubectl version --client --short || echo "kubectl version failed"
+                            '''
+                        }
+                    }
+                }
+            }
     stage('Deploy to Minikube') {
         steps {
             // First checkout the code
