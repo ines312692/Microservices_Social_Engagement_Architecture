@@ -65,7 +65,7 @@ pipeline {
                                 script {
                                     try {
                                         sh "chmod +x ./gradlew"
-                                        sh "[ -d ${GRADLE_CACHE_PATH} ] || mkdir -p ${GRADLE_CACHE_PATH}"
+                                         mkdir  ${GRADLE_CACHE_PATH}"
                                     } catch (Exception e) {
                                         echo "Erreur préparation cache : ${e.toString()}"
                                         currentBuild.result = 'FAILURE'
@@ -100,10 +100,6 @@ pipeline {
                                             ./gradlew assemble \
                                                 --parallel \
                                                 --max-workers=4 \
-
-                                                --daemon \
-                                                --configure-on-demand \
-                                                --build-cache \
                                                 --no-scan
                                         """
                                     } catch (Exception e) {
