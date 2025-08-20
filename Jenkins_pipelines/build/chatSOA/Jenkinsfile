@@ -65,21 +65,17 @@ pipeline {
         container('kubectl') {
             steps {
 
-<<<<<<< HEAD
                     withEnv(["KUBECONFIG=/var/jenkins_home/.kube/config"]) {
-=======
-                    withEnv(["KUBECONFIG=/home/jenkins/.kube/config"]) {
->>>>>>> 108bf7fa8d06c3c0504257e225436f55dab4ddcf
+
+
                         sh '''
                             kubectl get nodes
                             kubectl rollout status deployment chatsoa-deployment -n soa-microservices
                         '''
                     }
 
-<<<<<<< HEAD
             }
-=======
->>>>>>> 108bf7fa8d06c3c0504257e225436f55dab4ddcf
+
             }
         }
 
