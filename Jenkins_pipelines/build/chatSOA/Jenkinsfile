@@ -25,7 +25,6 @@ pipeline {
         REPO_URL          = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
         SONARQUBE_SERVER  = 'sonarqube-local'
         WORK_DIR          = "${WORKSPACE}/chatSOA/chatSOA"
-
     }
 
     options {
@@ -33,14 +32,11 @@ pipeline {
     }
 
     stages {
-
-
         stage('Checkout') {
             steps {
                 script {
                     try {
                         echo "Checkout depuis la branche ${params.TARGET_BRANCH}"
-
                         retry(2) {
                             checkout([
                                 $class: 'GitSCM',
@@ -62,34 +58,25 @@ pipeline {
             }
         }
         stage('Restart ChatSOA Deployment') {
-        container('kubectl') {
             steps {
-
+                container('kubectl') {
                     withEnv(["KUBECONFIG=/var/jenkins_home/.kube/config"]) {
-
-
                         sh '''
                             kubectl get nodes
                             kubectl rollout status deployment chatsoa-deployment -n soa-microservices
                         '''
                     }
-
-            }
-
-            }
-        }
-
-        }
-
-
-
-
-            post {
-                success {
-                    echo "Build terminé avec succès pour ChatSOA"
-                }
-                failure {
-                    echo "Build échoué pour ChatSOA"
                 }
             }
         }
+    }
+
+    post {
+        success {
+            echo "Build terminé avec succès pour ChatSOA"
+        }
+        failure {
+            echo "Build échoué pour ChatSOA"
+        }
+    }
+}
