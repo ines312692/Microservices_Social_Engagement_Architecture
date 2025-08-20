@@ -60,13 +60,13 @@ pipeline {
         stage('Restart ChatSOA Deployment') {
             steps {
                 container('kubectl') {
-                    withEnv(["KUBECONFIG=/var/jenkins_home/.kube/config"]) {
+
                         sh '''
                             kubectl get nodes
                             kubectl rollout status deployment chatsoa-deployment -n soa-microservices
                         '''
                     }
-                }
+
             }
         }
     }
