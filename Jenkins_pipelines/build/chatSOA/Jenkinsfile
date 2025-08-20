@@ -62,7 +62,7 @@ pipeline {
         }
         stage('Restart ChatSOA Deployment') {
             steps {
-            container('kubectl') {
+
 
                     script {
                         try {
@@ -79,7 +79,7 @@ pipeline {
                         }
                     }
 
-            }
+
         }
         }
 
