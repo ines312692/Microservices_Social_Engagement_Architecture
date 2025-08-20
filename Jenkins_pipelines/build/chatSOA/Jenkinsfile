@@ -62,13 +62,14 @@ pipeline {
             }
         }
         stage('Restart ChatSOA Deployment') {
+        agent { label 'master' }
             steps {
 
 
                     script {
                         try {
                             sh '''
-                            export KUBECONFIG=/var/jenkins_home/.kube/config
+
                             kubectl version
 
                             kubectl rollout status deployment chatsoa-deployment
