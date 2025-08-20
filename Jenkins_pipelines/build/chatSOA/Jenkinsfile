@@ -63,7 +63,7 @@ pipeline {
         stage('Restart ChatSOA Deployment') {
             steps {
             container('kubectl') {
-                withCredentials([string(credentialsId: 'chatsoa-token', variable: 'TOKEN')]) {
+
                     script {
                         try {
                             sh '''
@@ -78,7 +78,7 @@ pipeline {
                             throw e
                         }
                     }
-                }
+
             }
         }
         }
