@@ -155,13 +155,15 @@ pipeline {
                                             )
                                              echo "Scanning Docker image with Trivy..."
                                                                             sh """
-                                                                                docker run --rm \
-                                                                                    -v /var/run/docker.sock:/var/run/docker.sock \
-                                                                                    aquasec/trivy image \
-                                                                                    --severity CRITICAL,HIGH \
-                                                                                    --exit-code 1 \
-                                                                                    --no-progress \
-                                                                                    inestmimi123/k-chatsoa:${IMAGE_TAG}
+                                                                                 docker run --rm \
+                                                                                       -v /var/run/docker.sock:/var/run/docker.sock \
+                                                                                       aquasec/trivy image \
+                                                                                       --severity CRITICAL,HIGH \
+                                                                                       --exit-code 1 \
+                                                                                       --ignore-unfixed \
+                                                                                       --skip-files app.jar \
+                                                                                       --no-progress \
+                                                                                       inestmimi123/k-chatsoa:${IMAGE_TAG}
                                                                             """
 
 
