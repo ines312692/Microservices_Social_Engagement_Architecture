@@ -97,14 +97,7 @@ pipeline {
                                 script {
                                     try {
                                         sh """
-                                            ./gradlew assemble \
-                                                --parallel \
-                                                --max-workers=4 \
-                                                --project-cache-dir=${GRADLE_CACHE_PATH} \
-                                                --daemon \
-                                                --configure-on-demand \
-                                                --build-cache \
-                                                --no-scan
+                                            ./gradlew assemble --project-cache-dir=${GRADLE_CACHE_PATH}
                                         """
                                     } catch (Exception e) {
                                         echo "Erreur Build Gradle : ${e.toString()}"
