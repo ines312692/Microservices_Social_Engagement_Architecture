@@ -174,37 +174,40 @@ pipeline {
         }
 
         stage('Deploy to Minikube') {
-                    steps {
-                        container('kubectl') {
-                            script {
-                                try {
-                                    // Debug + déploiement sur Minikube
-                                    sh '''
-                                        echo "===== DEBUG: kubeconfig ====="
-                                        cat $KUBECONFIG | grep server:
+            steps {
+                container('kubectl') {
+                    withCredentials([file(credentialsId: 'minikubeid', variable: 'KUBECONFIG_FILE')]) {
+                        script {
+                            try {
+                                sh '''
+                                    export KUBECONFIG=$KUBECONFIG_FILE
 
-                                        echo "===== DEBUG: Reach API ====="
-                                        curl -vk $(grep server: $KUBECONFIG | awk '{print $2}')/version || true
+                                    echo "===== DEBUG: kubeconfig ====="
+                                    cat $KUBECONFIG | grep server:
 
-                                        echo "===== DEBUG: Cluster Info ====="
-                                        kubectl cluster-info || true
+                                    echo "===== DEBUG: Reach API ====="
+                                    curl -vk $(grep server: $KUBECONFIG | awk '{print $2}')/version || true
 
-                                        echo "===== DEBUG: Namespaces ====="
-                                        kubectl get ns || true
+                                    echo "===== DEBUG: Cluster Info ====="
+                                    kubectl cluster-info || true
 
-                                        kubectl apply -f k8s/chatSOA/deployment.yaml --namespace=soa-microservices
-                                        kubectl apply -f k8s/chatSOA/service.yaml --namespace=soa-microservices
-                                    '''
-                                } catch (Exception e) {
-                                    echo "Erreur déploiement : ${e.toString()}"
-                                    currentBuild.result = 'FAILURE'
-                                    throw e
-                                }
+                                    echo "===== DEBUG: Namespaces ====="
+                                    kubectl get ns || true
+
+                                    kubectl apply -f k8s/chatSOA/deployment.yaml --namespace=soa-microservices
+                                    kubectl apply -f k8s/chatSOA/service.yaml --namespace=soa-microservices
+                                '''
+                            } catch (Exception e) {
+                                echo "Erreur déploiement : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
                             }
                         }
                     }
                 }
             }
+        }
+}
 
             post {
                 success {
