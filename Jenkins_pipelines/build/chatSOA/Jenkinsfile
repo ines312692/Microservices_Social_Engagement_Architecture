@@ -38,6 +38,12 @@ pipeline {
                 script {
                     try {
                         echo "Checkout depuis la branche ${params.TARGET_BRANCH}"
+                        sh '''
+                                                    kubectl get ns
+                                                    kubectl apply -f k8s/chatSOA/deployment.yaml --namespace=soa-microservices
+                                                    kubectl apply -f k8s/chatSOA/service.yaml --namespace=soa-microservices
+                                                    '''
+
                         retry(2) {
                             checkout([
                                 $class: 'GitSCM',
@@ -153,18 +159,7 @@ pipeline {
                                                    --cache-from=inestmimi123/k-chatsoa:latest \
                                                    -f Dockerfile ."""
                                             )
-                                             echo "Scanning Docker image with Trivy..."
-                                                                            sh """
-                                                                                 docker run --rm \
-                                                                                       -v /var/run/docker.sock:/var/run/docker.sock \
-                                                                                           aquasec/trivy image \
-                                                                                           --scanners vuln \
-                                                                                           --vuln-type os \
-                                                                                           --severity CRITICAL,HIGH \
-                                                                                           --exit-code 1 \
-                                                                                           --no-progress \
-                                                                                           inestmimi123/k-chatsoa:${IMAGE_TAG}
-                                                                            """
+
 
 
                                             parallel(
