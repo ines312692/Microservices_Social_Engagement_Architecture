@@ -58,14 +58,12 @@ pipeline {
             }
         }
         stage('Restart ChatSOA Deployment') {
+        container('kubectl') {
             steps {
-                        sh """
-                        kubectl --help
-                        """
+                        sh 'echo "Je suis dans le container:" && whoami && ls /usr/local/bin && env'
 
                     }
-
-
+                    }
         }
     }
 
