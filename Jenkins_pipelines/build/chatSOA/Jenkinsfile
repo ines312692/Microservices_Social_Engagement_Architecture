@@ -2,7 +2,7 @@ pipeline {
     agent {
         kubernetes {
             inheritFrom 'build-chat'
-            defaultContainer 'kubectl'
+            defaultContainer 'gradle'
             namespace 'soa-microservices'
             serviceAccount 'chatsoa-deployer'
         }
@@ -25,6 +25,7 @@ pipeline {
         REPO_URL          = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
         SONARQUBE_SERVER  = 'sonarqube-local'
         WORK_DIR          = "${WORKSPACE}/chatSOA/chatSOA"
+        KUBECONFIG = '/var/jenkins_home/.kube/config'
     }
 
     options {
