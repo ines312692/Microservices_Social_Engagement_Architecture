@@ -62,32 +62,22 @@ pipeline {
             }
         }
         stage('Restart ChatSOA Deployment') {
-        agent { label 'master' }
             steps {
-
-
-                    script {
-                        try {
-                            sh '''
-
-                            kubectl version
-
-                            kubectl rollout status deployment chatsoa-deployment
-                            '''
-                            echo "Redémarrage du déploiement ChatSOA terminé avec succès !"
-                        } catch (Exception e) {
-                            echo "Erreur lors du redémarrage : ${e.toString()}"
-                            currentBuild.result = 'FAILURE'
-                            throw e
-                        }
+                container('kubectl') {
+                    withEnv(["KUBECONFIG=/var/jenkins_home/.kube/config"]) {
+                        sh '''
+                            kubectl get nodes
+                            kubectl rollout status deployment chatsoa-deployment -n soa-microservices
+                        '''
                     }
-
+                }
+            }
+        }
 
         }
-        }
 
 
-}
+
 
             post {
                 success {
