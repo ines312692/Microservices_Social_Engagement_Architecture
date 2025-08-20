@@ -177,14 +177,14 @@ pipeline {
             steps {
                 container('kubectl') {
                     withCredentials([file(credentialsId: 'minikubeid', variable: 'KUBECONFIG_FILE')]) {
-                        container('kubectl') {
+
                             sh '''
                             export KUBECONFIG=$KUBECONFIG_FILE
                             kubectl get ns
                             kubectl apply -f k8s/chatSOA/deployment.yaml --namespace=soa-microservices
                             kubectl apply -f k8s/chatSOA/service.yaml --namespace=soa-microservices
                             '''
-                        }
+
                     }
                 }
             }
