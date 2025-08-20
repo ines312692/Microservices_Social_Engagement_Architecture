@@ -25,6 +25,7 @@ pipeline {
         REPO_URL          = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
         SONARQUBE_SERVER  = 'sonarqube-local'
         WORK_DIR          = "${WORKSPACE}/chatSOA/chatSOA"
+        KUBECONFIG        = '/var/jenkins_home/.kube/config'
     }
 
     options {
@@ -173,50 +174,44 @@ pipeline {
         }
 
         stage('Deploy to Minikube') {
-            steps {
-                container('kubectl') {
-                    withCredentials([file(credentialsId: 'minikubeid', variable: 'KUBECONFIG')]) {
-                        script {
-                            try {
-                            sh '''
-                                                        echo "===== DEBUG: kubeconfig ====="
-                                                        cat $KUBECONFIG | grep server:
+                    steps {
+                        container('kubectl') {
+                            script {
+                                try {
+                                    // Debug + déploiement sur Minikube
+                                    sh '''
+                                        echo "===== DEBUG: kubeconfig ====="
+                                        cat $KUBECONFIG | grep server:
 
-                                                        echo "===== DEBUG: Reach API ====="
-                                                        curl -vk $(grep server: $KUBECONFIG | awk '{print $2}')/version || true
+                                        echo "===== DEBUG: Reach API ====="
+                                        curl -vk $(grep server: $KUBECONFIG | awk '{print $2}')/version || true
 
-                                                        echo "===== DEBUG: Cluster Info ====="
-                                                        kubectl --kubeconfig $KUBECONFIG cluster-info || true
+                                        echo "===== DEBUG: Cluster Info ====="
+                                        kubectl cluster-info || true
 
-                                                        echo "===== DEBUG: Namespaces ====="
-                                                        kubectl --kubeconfig $KUBECONFIG get ns || true
-                                                    '''
-                                sh 'kubectl version --short'
+                                        echo "===== DEBUG: Namespaces ====="
+                                        kubectl get ns || true
 
-                                sh '''
-                                    kubectl apply -f k8s/chatSOA/deployment.yaml --namespace=soa-microservices
-                                    kubectl apply -f k8s/chatSOA/service.yaml --namespace=soa-microservices
-                                '''
-                            } catch (Exception e) {
-                                echo "Erreur déploiement : ${e.toString()}"
-                                currentBuild.result = 'FAILURE'
-                                throw e
+                                        kubectl apply -f k8s/chatSOA/deployment.yaml --namespace=soa-microservices
+                                        kubectl apply -f k8s/chatSOA/service.yaml --namespace=soa-microservices
+                                    '''
+                                } catch (Exception e) {
+                                    echo "Erreur déploiement : ${e.toString()}"
+                                    currentBuild.result = 'FAILURE'
+                                    throw e
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-
-    }
-
-    post {
-        success {
-            echo "Build terminé avec succès pour ChatSOA"
+            post {
+                success {
+                    echo "Build terminé avec succès pour ChatSOA"
+                }
+                failure {
+                    echo "Build échoué pour ChatSOA"
+                }
+            }
         }
-        failure {
-            echo "Build échoué pour ChatSOA"
-        }
-    }
-}
