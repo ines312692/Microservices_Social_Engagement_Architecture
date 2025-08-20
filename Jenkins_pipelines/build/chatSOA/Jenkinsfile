@@ -77,18 +77,7 @@ pipeline {
                     }
                 }
 
-                stage('Prewarm Gradle Daemon') {
-                    steps {
-                        container('gradle') {
-                            dir("${WORK_DIR}") {
-                                script {
-                                    echo "Préchauffage du daemon Gradle..."
-                                    sh "./gradlew --daemon help || true"
-                                }
-                            }
-                        }
-                    }
-                }
+
 
                 stage('Build Gradle') {
                     steps {
