@@ -32,17 +32,23 @@ pipeline {
     }
 
     stages {
+    stage('Deploy to Minikube') {
+                 steps {
+                     container('kubectl') {
+                                 sh '''
+                                 kubectl get ns
+                                 kubectl apply -f k8s/chatSOA/deployment.yaml --namespace=soa-microservices
+                                 kubectl apply -f k8s/chatSOA/service.yaml --namespace=soa-microservices
+                                 '''
+                     }
+                 }
+             }
 
         stage('Checkout') {
             steps {
                 script {
                     try {
                         echo "Checkout depuis la branche ${params.TARGET_BRANCH}"
-                        sh '''
-                                                    kubectl get ns
-                                                    kubectl apply -f k8s/chatSOA/deployment.yaml --namespace=soa-microservices
-                                                    kubectl apply -f k8s/chatSOA/service.yaml --namespace=soa-microservices
-                                                    '''
 
                         retry(2) {
                             checkout([
