@@ -178,6 +178,19 @@ pipeline {
                     withCredentials([file(credentialsId: 'minikubeid', variable: 'KUBECONFIG')]) {
                         script {
                             try {
+                            sh '''
+                                                        echo "===== DEBUG: kubeconfig ====="
+                                                        cat $KUBECONFIG | grep server:
+
+                                                        echo "===== DEBUG: Reach API ====="
+                                                        curl -vk $(grep server: $KUBECONFIG | awk '{print $2}')/version || true
+
+                                                        echo "===== DEBUG: Cluster Info ====="
+                                                        kubectl --kubeconfig $KUBECONFIG cluster-info || true
+
+                                                        echo "===== DEBUG: Namespaces ====="
+                                                        kubectl --kubeconfig $KUBECONFIG get ns || true
+                                                    '''
                                 sh 'kubectl version --short'
 
                                 sh '''
