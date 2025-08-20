@@ -32,6 +32,7 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 script {
@@ -42,12 +43,7 @@ pipeline {
                             checkout([
                                 $class: 'GitSCM',
                                 branches: [[name: "*/${params.TARGET_BRANCH}"]],
-                                userRemoteConfigs: [[url: "${REPO_URL}"]],
-                                extensions: [
-                                    [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
-                                    [$class: 'LocalBranch', localBranch: "${params.TARGET_BRANCH}"],
-                                    [$class: 'CleanBeforeCheckout']
-                                ]
+                                userRemoteConfigs: [[url: "${REPO_URL}"]]
                             ])
                         }
                     } catch (Exception e) {
@@ -58,6 +54,7 @@ pipeline {
                 }
             }
         }
+
         stage('Préparer Cache') {
                     steps {
                         container('gradle') {
