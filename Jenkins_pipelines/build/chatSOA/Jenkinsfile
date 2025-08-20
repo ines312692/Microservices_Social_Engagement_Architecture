@@ -59,15 +59,13 @@ pipeline {
         }
         stage('Restart ChatSOA Deployment') {
             steps {
-                container('kubectl') {
-
                         sh """
                         kubectl --help
                         """
 
                     }
 
-            }
+
         }
     }
 
