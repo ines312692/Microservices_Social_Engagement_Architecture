@@ -33,16 +33,39 @@ pipeline {
 
     stages {
     stage('Deploy to Minikube') {
-                 steps {
-                     container('kubectl') {
-                                 sh '''
-                                 kubectl get ns
-                                 kubectl apply -f k8s/chatSOA/deployment.yaml --namespace=soa-microservices
-                                 kubectl apply -f k8s/chatSOA/service.yaml --namespace=soa-microservices
-                                 '''
-                     }
-                 }
-             }
+        steps {
+            // First checkout the code
+            checkout([
+                $class: 'GitSCM',
+                branches: [[name: "${params.TARGET_BRANCH}"]],
+                userRemoteConfigs: [[url: "${REPO_URL}"]]
+            ])
+
+            container('kubectl') {
+                sh '''
+                    echo "Current working directory: $(pwd)"
+                    ls -la
+
+                    kubectl get ns
+
+                    # Check if files exist before applying
+                    if [ -f "k8s/chatSOA/deployment.yaml" ]; then
+                        kubectl apply -f k8s/chatSOA/deployment.yaml --namespace=soa-microservices
+                    else
+                        echo "deployment.yaml not found!"
+                        find . -name "*.yaml" -type f
+                    fi
+
+                    if [ -f "k8s/chatSOA/service.yaml" ]; then
+                        kubectl apply -f k8s/chatSOA/service.yaml --namespace=soa-microservices
+                    else
+                        echo "service.yaml not found!"
+                    fi
+                '''
+            }
+        }
+    }
+
 
         stage('Checkout') {
             steps {
