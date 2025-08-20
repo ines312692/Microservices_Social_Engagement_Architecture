@@ -89,7 +89,8 @@ pipeline {
                                             ./gradlew assemble \
                                                 --parallel \
                                                 --max-workers=4 \
-                                                --no-scan
+                                                --no-scan \
+                                                --no-daemon
                                         """
                                     } catch (Exception e) {
                                         echo "Erreur Build Gradle : ${e.toString()}"
@@ -111,6 +112,7 @@ pipeline {
                                         sh """
                                             ./gradlew test \
                                                 --parallel \
+                                                --no-daemon \
                                                 --max-workers=4 \
 
                                         """
