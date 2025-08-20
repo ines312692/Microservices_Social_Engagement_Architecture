@@ -174,8 +174,8 @@ pipeline {
 
         stage('Deploy to Minikube') {
             steps {
-
-                    withCredentials([file(credentialsId: 'minikubeconfig', variable: 'KUBECONFIG')]) {
+                container('kubectl') {
+                    withCredentials([file(credentialsId: 'minikubeid', variable: 'KUBECONFIG')]) {
                         script {
                             try {
                                 sh 'kubectl version --short'
@@ -191,7 +191,7 @@ pipeline {
                             }
                         }
                     }
-
+                }
             }
         }
 
