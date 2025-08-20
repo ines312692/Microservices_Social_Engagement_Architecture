@@ -25,7 +25,6 @@ pipeline {
         REPO_URL          = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
         SONARQUBE_SERVER  = 'sonarqube-local'
         WORK_DIR          = "${WORKSPACE}/chatSOA/chatSOA"
-        KUBECONFIG        = '/var/jenkins_home/.kube/config'
     }
 
     options {
@@ -154,6 +153,16 @@ pipeline {
                                                    --cache-from=inestmimi123/k-chatsoa:latest \
                                                    -f Dockerfile ."""
                                             )
+                                             echo "Scanning Docker image with Trivy..."
+                                                                            sh """
+                                                                                docker run --rm \
+                                                                                    -v /var/run/docker.sock:/var/run/docker.sock \
+                                                                                    aquasec/trivy image \
+                                                                                    --severity CRITICAL,HIGH \
+                                                                                    --exit-code 1 \
+                                                                                    --no-progress \
+                                                                                    inestmimi123/k-chatsoa:${IMAGE_TAG}
+                                                                            """
 
 
                                             parallel(
@@ -171,10 +180,6 @@ pipeline {
                         }
                     }
                 }
-
-
-
-
 }
 
             post {
