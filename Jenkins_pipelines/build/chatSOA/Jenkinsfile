@@ -32,56 +32,6 @@ pipeline {
     }
 
     stages {
-    stage('Test kubectl Access') {
-                steps {
-                    timeout(time: 2, unit: 'MINUTES') {
-                        container('kubectl') {
-                            sh '''
-                                echo "=== Testing kubectl container ==="
-                                echo "Current user: $(whoami)"
-                                echo "Current directory: $(pwd)"
-                                echo "kubectl version:"
-                                kubectl version --client --short || echo "kubectl version failed"
-                            '''
-                        }
-                    }
-                }
-            }
-    stage('Deploy to Minikube') {
-        steps {
-            // First checkout the code
-            checkout([
-                $class: 'GitSCM',
-                branches: [[name: "${params.TARGET_BRANCH}"]],
-                userRemoteConfigs: [[url: "${REPO_URL}"]]
-            ])
-
-            container('kubectl') {
-                sh '''
-                    echo "Current working directory: $(pwd)"
-                    ls -la
-
-                    kubectl get ns
-
-                    # Check if files exist before applying
-                    if [ -f "k8s/chatSOA/deployment.yaml" ]; then
-                        kubectl apply -f k8s/chatSOA/deployment.yaml --namespace=soa-microservices
-                    else
-                        echo "deployment.yaml not found!"
-                        find . -name "*.yaml" -type f
-                    fi
-
-                    if [ -f "k8s/chatSOA/service.yaml" ]; then
-                        kubectl apply -f k8s/chatSOA/service.yaml --namespace=soa-microservices
-                    else
-                        echo "service.yaml not found!"
-                    fi
-                '''
-            }
-        }
-    }
-
-
         stage('Checkout') {
             steps {
                 script {
@@ -203,9 +153,6 @@ pipeline {
                                                    --cache-from=inestmimi123/k-chatsoa:latest \
                                                    -f Dockerfile ."""
                                             )
-
-
-
                                             parallel(
                                                 "Push Tagged": { appImage.push() },
                                                 "Push Latest": { appImage.push('latest') }
