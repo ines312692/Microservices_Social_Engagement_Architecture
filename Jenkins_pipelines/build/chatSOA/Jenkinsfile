@@ -61,7 +61,9 @@ pipeline {
             steps {
                 container('kubectl') {
 
-                        echo "Redémarrage du déploiement ChatSOA"
+                        sh """
+                        kubectl --help
+                        """
 
                     }
 
