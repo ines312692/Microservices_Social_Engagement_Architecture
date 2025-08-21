@@ -62,9 +62,9 @@ pipeline {
                container('docker') {
                    script {
                        try {
-                           // Créer Dockerfile via heredoc
-                           sh '''#!/bin/bash
-                           cat > Dockerfile <<'EOF'
+                           // Créer Dockerfile via heredoc (sans indentation)
+                           sh """
+       cat > Dockerfile <<'EOF'
        FROM debian:bullseye-slim
 
        # Installer kubectl + utilitaires (bash, curl, git, etc.)
@@ -77,7 +77,7 @@ pipeline {
                vim \
                gnupg && \
            curl -fsSLo /usr/local/bin/kubectl \
-               https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl && \
+               https://dl.k8s.io/release/\$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl && \
            chmod +x /usr/local/bin/kubectl && \
            apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -88,7 +88,7 @@ pipeline {
 
        CMD ["sleep", "9999999"]
        EOF
-                           '''
+       """
 
                            docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
                                def imageName = "inestmimi123/kubectl:latest"
@@ -107,6 +107,7 @@ pipeline {
                }
            }
        }
+
 
     }
 
