@@ -2,7 +2,7 @@ pipeline {
     agent {
         kubernetes {
             inheritFrom 'build-chat'
-            defaultContainer 'kubectl'
+            defaultContainer 'gradle'
             namespace 'soa-microservices'
             serviceAccount 'chatsoa-deployer'
         }
@@ -31,65 +31,51 @@ pipeline {
         skipDefaultCheckout(true)
     }
 
-    triggers {
-        githubPush()
-    }
-
     stages {
-
-       stage('Debug Kubectl Container') {
-           steps {
-               container('kubectl') {
-                   script {
-                       try {
-                           echo "=== Container Debugging "
-                           def restartResult = sh(
-                                                   script: "kubectl rollout restart deployment/chatsoa-deployment -n soa-microservices",
-                                                   returnStatus: true
-                                               )
-
-                       } catch (Exception e) {
-                           echo "Debug error: ${e.getMessage()}"
-                           // Continuons le debug même en cas d'erreur
-                           try {
-                               sh "find / -name kubectl -type f 2>/dev/null || echo 'kubectl not found anywhere'"
-                           } catch (Exception e2) {
-                               echo "Cannot find kubectl: ${e2.getMessage()}"
-                           }
-                       }
-                   }
-               }
-           }
-       }
-
-        stage('Restart Deploy to Kubernetes') {
+        stage('Checkout') {
             steps {
-                container('kubectl') {
-                    script {
-                        try {
-                            echo "Restarting chatsoa-deployment..."
-                            sh """
-                                kubectl rollout restart deployment/chatsoa-deployment -n soa-microservices
-                                kubectl rollout status deployment/chatsoa-deployment -n soa-microservices --timeout=120s
-                            """
-                        } catch (Exception e) {
-                            echo "Error while restarting deployment: ${e.toString()}"
-                            currentBuild.result = 'FAILURE'
-                            throw e
+                script {
+                    try {
+                        echo "Checkout depuis la branche ${params.TARGET_BRANCH}"
+                        retry(2) {
+                            checkout([
+                                $class: 'GitSCM',
+                                branches: [[name: "*/${params.TARGET_BRANCH}"]],
+                                userRemoteConfigs: [[url: "${REPO_URL}"]],
+                                extensions: [
+                                    [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
+                                    [$class: 'LocalBranch', localBranch: "${params.TARGET_BRANCH}"],
+                                    [$class: 'CleanBeforeCheckout']
+                                ]
+                            ])
                         }
+                    } catch (Exception e) {
+                        echo "Erreur Checkout : ${e.toString()}"
+                        currentBuild.result = 'FAILURE'
+                        throw e
                     }
                 }
             }
         }
-
+       stage('Deploy to K8s') {
+           steps {
+               container('kubectl') {
+                   sh """
+                       echo "Je suis dans le container kubectl"
+                       kubectl version --client
+                       kubectl get pods -n soa-microservices
+                   """
+               }
+           }
+       }
     }
 
     post {
         success {
-            echo "Build completed successfully for ChatSOA"
+            echo "Build terminé avec succès pour ChatSOA"
         }
         failure {
-            echo "Build failed for ChatSOA"
+            echo "Build échoué pour ChatSOA"
         }
     }
 }
