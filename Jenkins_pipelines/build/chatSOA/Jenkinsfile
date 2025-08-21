@@ -171,28 +171,27 @@ pipeline {
                         }
                     }
                 }
-                        stage('Deploy to Kubernetes') {
-                            steps {
-                                container('kubectl') {
-                                    script {
-                                        try {
-                                            echo "Deploiement de l'application dans Kubernetes..."
+                      stage('Restart Deploy to Kubernetes') {
+                          steps {
+                              container('kubectl') {
+                                  script {
+                                      try {
+                                          echo "Redémarrage du déploiement chatsoa-deployment..."
 
-                                            sh """
-                                                kubectl set image deployment/chatsoa-deployment \
-                                                    chatsoa-container=inestmimi123/k-chatsoa:${IMAGE_TAG} \
-                                                    -n soa-microservices
-                                                    kubectl rollout status deployment/chatsoa-deployment -n soa-microservices --timeout=120s
-                                            """
-                                        } catch (Exception e) {
-                                            echo "Erreur lors du déploiement : ${e.toString()}"
-                                            currentBuild.result = 'FAILURE'
-                                            throw e
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                                          sh """
+                                              kubectl rollout restart deployment/chatsoa-deployment -n soa-microservices
+                                              kubectl rollout status deployment/chatsoa-deployment -n soa-microservices --timeout=120s
+                                          """
+                                      } catch (Exception e) {
+                                          echo "Erreur lors du redémarrage du déploiement : ${e.toString()}"
+                                          currentBuild.result = 'FAILURE'
+                                          throw e
+                                      }
+                                  }
+                              }
+                          }
+                      }
+
 
 
 }
