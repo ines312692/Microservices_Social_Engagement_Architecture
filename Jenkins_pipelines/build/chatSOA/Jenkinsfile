@@ -60,11 +60,9 @@ pipeline {
        stage('Deploy to K8s') {
            steps {
                container('kubectl') {
-                   sh """
-                       echo "Je suis dans le container kubectl"
-                       kubectl version --client
-                       kubectl get pods -n soa-microservices
-                   """
+                   sh 'echo "Je suis dans le container kubectl"'
+                      sh 'kubectl version --client'
+                      sh 'kubectl get pods -n soa-microservices'
                }
            }
        }
