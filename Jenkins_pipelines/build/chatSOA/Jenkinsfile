@@ -42,7 +42,7 @@ pipeline {
                container('kubectl') {
                    script {
                        try {
-                           echo "=== Container Debugging ==="
+                           echo "=== Container Debugging "
                            def restartResult = sh(
                                                    script: "kubectl rollout restart deployment/chatsoa-deployment -n soa-microservices",
                                                    returnStatus: true
