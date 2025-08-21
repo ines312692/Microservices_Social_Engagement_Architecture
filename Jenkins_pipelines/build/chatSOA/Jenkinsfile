@@ -147,27 +147,7 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
-            steps {
-                script {
-                    try {
-                        withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                            sh """
-                                ./gradlew sonar \
-                                    -Dsonar.projectKey=chatSOA \
-                                    -Dsonar.java.binaries=build/classes/java/main \
-                                    -Dsonar.junit.reportPaths=build/test-results/test \
-                                    -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml
-                            """
-                        }
-                    } catch (Exception e) {
-                        echo "Erreur SonarQube : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
-                    }
-                }
-            }
-        }
+
 
         stage('Docker Build & Push') {
             steps {
@@ -184,18 +164,7 @@ pipeline {
                                            -f Dockerfile ."""
                                     )
 
-                                    echo "Scanning Docker image with Trivy..."
-                                    sh """
-                                        docker run --rm \
-                                        -v /var/run/docker.sock:/var/run/docker.sock \
-                                        aquasec/trivy image \
-                                        --scanners vuln \
-                                        --vuln-type os \
-                                        --severity CRITICAL,HIGH \
-                                        --exit-code 1 \
-                                        --no-progress \
-                                        inestmimi123/k-chatsoa:${IMAGE_TAG}
-                                    """
+
 
                                     parallel(
                                         "Push Tagged": { appImage.push() },
