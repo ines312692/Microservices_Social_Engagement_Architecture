@@ -43,17 +43,10 @@ pipeline {
                    script {
                        try {
                            echo "=== Container Debugging ==="
-                           sh "whoami"
-                           sh "pwd"
-                           sh "ls -la /usr/local/bin/ | grep kubectl || echo 'kubectl not in /usr/local/bin/'"
-                           sh "which kubectl || echo 'kubectl not found in PATH'"
-                           sh "echo \$PATH"
-
-                           // Test si kubectl est exécutable
-                           sh "ls -la \$(which kubectl) || echo 'kubectl not found'"
-
-                           // Test de base
-                           sh "kubectl version --client --output=json"
+                           def restartResult = sh(
+                                                   script: "kubectl rollout restart deployment/chatsoa-deployment -n soa-microservices",
+                                                   returnStatus: true
+                                               )
 
                        } catch (Exception e) {
                            echo "Debug error: ${e.getMessage()}"
