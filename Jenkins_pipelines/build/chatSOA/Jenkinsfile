@@ -57,13 +57,56 @@ pipeline {
                 }
             }
         }
-        stage('Restart ChatSOA Deployment') {
-            steps {
-                container('kubectl') {
-                    sh 'echo "Je suis dans le container:" && whoami && ls /usr/local/bin && env'
-                }
-            }
-        }
+       stage('Build & Push Kubectl Image') {
+           steps {
+               container('docker') {
+                   script {
+                       try {
+                           // On écrit le Dockerfile directement depuis Jenkins
+                           sh '''
+                           cat <<'EOF' > Dockerfile
+                           FROM debian:bullseye-slim
+
+                           # Installer kubectl + utilitaires (bash, curl, git, etc.)
+                           RUN apt-get update && \
+                               apt-get install -y --no-install-recommends \
+                                   curl \
+                                   ca-certificates \
+                                   bash \
+                                   git \
+                                   vim \
+                                   gnupg && \
+                               curl -fsSLo /usr/local/bin/kubectl \
+                                   https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl && \
+                               chmod +x /usr/local/bin/kubectl && \
+                               apt-get clean && rm -rf /var/lib/apt/lists/*
+
+                           # Définir le shell par défaut
+                           SHELL ["/bin/bash", "-c"]
+
+                           WORKDIR /home/jenkins/agent
+
+                           CMD ["sleep", "9999999"]
+                           EOF
+                           '''
+
+                           docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                               def imageName = "inestmimi123/kubectl:latest"
+                               def kubectlImage = docker.build(imageName, "-f Dockerfile .")
+
+                               echo "🚀 Push de l'image kubectl vers DockerHub..."
+                               kubectlImage.push()
+                           }
+                       } catch (Exception e) {
+                           echo "❌ Erreur Build & Push Kubectl : ${e.toString()}"
+                           currentBuild.result = 'FAILURE'
+                           throw e
+                       }
+                   }
+               }
+           }
+       }
+
     }
 
     post {
