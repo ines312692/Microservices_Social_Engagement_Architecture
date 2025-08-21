@@ -62,33 +62,29 @@ pipeline {
                container('docker') {
                    script {
                        try {
-                           // Créer Dockerfile correctement
-                           sh '''
-                               cat > Dockerfile <<EOF
-       FROM debian:bullseye-slim
+                           // Method 1: Create Dockerfile using writeFile (Recommended)
+                           writeFile file: 'Dockerfile', text: '''FROM debian:bullseye-slim
 
-       # Installer kubectl + utilitaires (bash, curl, git, etc.)
-       RUN apt-get update && \\
-           apt-get install -y --no-install-recommends \\
-               curl \\
-               ca-certificates \\
-               bash \\
-               git \\
-               vim \\
-               gnupg && \\
-           curl -fsSLo /usr/local/bin/kubectl \\
-               https://dl.k8s.io/release/\$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl && \\
-           chmod +x /usr/local/bin/kubectl && \\
-           apt-get clean && rm -rf /var/lib/apt/lists/*
+# Installer kubectl + utilitaires (bash, curl, git, etc.)
+RUN apt-get update && \\
+    apt-get install -y --no-install-recommends \\
+        curl \\
+        ca-certificates \\
+        bash \\
+        git \\
+        vim \\
+        gnupg && \\
+    curl -fsSLo /usr/local/bin/kubectl \\
+        https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl && \\
+    chmod +x /usr/local/bin/kubectl && \\
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-       # Définir le shell par défaut
-       SHELL ["/bin/bash", "-c"]
+# Définir le shell par défaut
+SHELL ["/bin/bash", "-c"]
 
-       WORKDIR /home/jenkins/agent
+WORKDIR /home/jenkins/agent
 
-       CMD ["sleep", "9999999"]
-       EOF
-                           '''
+CMD ["sleep", "9999999"]'''
 
                            docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
                                def imageName = "inestmimi123/kubectl:latest"
