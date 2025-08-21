@@ -62,7 +62,7 @@ pipeline {
                container('docker') {
                    script {
                        try {
-                           // Créer Dockerfile via heredoc (sans indentation)
+                           // Créer Dockerfile correctement
                            sh """
        cat > Dockerfile <<'EOF'
        FROM debian:bullseye-slim
@@ -107,6 +107,7 @@ pipeline {
                }
            }
        }
+
 
 
     }
