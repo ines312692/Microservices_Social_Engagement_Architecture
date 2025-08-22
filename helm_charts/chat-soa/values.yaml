@@ -3,6 +3,7 @@ replicaCount: 1
 image:
   repository: inestmimi123/k-chatsoa
   tag: "latest"
+  pullPolicy: Always
 
 service:
   type: ClusterIP
