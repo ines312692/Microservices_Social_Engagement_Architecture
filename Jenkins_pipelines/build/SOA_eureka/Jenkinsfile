@@ -23,7 +23,7 @@ pipeline {
         GRADLE_USER_HOME  = "${GRADLE_CACHE_PATH}"
         REPO_URL          = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
         SONARQUBE_SERVER  = 'sonarqube-local'
-        WORK_DIR          = "${WORKSPACE}/SOA"
+        WORK_DIR          = "${WORKSPACE}/EurekaSOA"
     }
 
     options {
