@@ -114,6 +114,7 @@ pipeline {
                                         --build-cache \
                                         --no-scan
                                 """
+                                sh "ls -l build/libs"
                             } catch (Exception e) {
                                 echo "Erreur Build Gradle : ${e.toString()}"
                                 currentBuild.result = 'FAILURE'
