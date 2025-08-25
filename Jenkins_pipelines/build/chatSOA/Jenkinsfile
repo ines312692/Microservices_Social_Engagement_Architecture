@@ -11,7 +11,7 @@ pipeline {
     parameters {
         string(
             name: 'TARGET_BRANCH',
-            defaultValue: 'ops/jenkins-chat-improvement',
+            defaultValue: 'fix/code-quality-checks',
             description: 'Branche à builder'
         )
     }
@@ -183,7 +183,7 @@ pipeline {
                         timeout(time: 5, unit: 'MINUTES') {
                             def qg = waitForQualityGate()
                             if (qg.status != 'OK') {
-                                error "Code quality insuffisante ! Arrêt du pipeline."
+                                error "Insufficient code quality! Stopping the pipeline."
                             }
                         }
                     } catch (Exception e) {
