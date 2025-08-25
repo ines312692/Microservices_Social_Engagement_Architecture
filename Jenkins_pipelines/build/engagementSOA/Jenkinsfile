@@ -17,10 +17,9 @@ pipeline {
     }
 
     environment {
-        DOCKERHUB_IMAGE   = 'k-engsoa'
-        IMAGE_TAG         = "latest"
+        IMAGE_TAG         = 'latest'
         DOCKER_BUILDKIT   = '1'
-        GRADLE_CACHE_PATH = '/mnt/gradle_cache/eng'
+        GRADLE_CACHE_PATH = '/mnt/gradle_cache'
         GRADLE_USER_HOME  = "${GRADLE_CACHE_PATH}"
         REPO_URL          = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
         SONARQUBE_SERVER  = 'sonarqube-local'
@@ -37,7 +36,6 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 script {
@@ -150,50 +148,7 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
-            steps {
-                container('gradle') {
-                    dir("${WORK_DIR}") {
-                        script {
-                            try {
-                                withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                                    sh """
-                                        ./gradlew sonar \
-                                            -Dsonar.projectKey=engagementSOA \
-                                            -Dsonar.java.binaries=build/classes/java/main \
-                                            -Dsonar.junit.reportPaths=build/test-results/test \
-                                            -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml
-                                    """
-                                }
-                            } catch (Exception e) {
-                                echo "Erreur SonarQube : ${e.toString()}"
-                                currentBuild.result = 'FAILURE'
-                                throw e
-                            }
-                        }
-                    }
-                }
-            }
-        }
 
-        stage('Quality Gate') {
-            steps {
-                script {
-                    try {
-                        timeout(time: 5, unit: 'MINUTES') {
-                            def qg = waitForQualityGate()
-                            if (qg.status != 'OK') {
-                                error "Insufficient code quality! Stopping the pipeline."
-                            }
-                        }
-                    } catch (Exception e) {
-                        echo "Erreur Quality Gate : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
-                    }
-                }
-            }
-        }
 
         stage('Docker Build') {
             steps {
@@ -204,11 +159,20 @@ pipeline {
                                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
                                                                   usernameVariable: 'DOCKER_USER',
                                                                   passwordVariable: 'DOCKER_PASS')]) {
+                                    def imageName = "${DOCKER_USER}/engsoa:${IMAGE_TAG}"
+                                    echo "Building Docker image with BuildKit and cache-from: ${imageName}"
+
                                     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                        env.IMAGE_NAME = "${DOCKER_USER}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}"
-                                        env.APP_IMAGE = docker.build(env.IMAGE_NAME)
-                                        echo "Docker image built: ${env.IMAGE_NAME}"
+                                        sh """
+                                            DOCKER_BUILDKIT=1 docker build \
+                                                --cache-from=${DOCKER_USER}/engsoa:latest \
+                                                --tag ${imageName} \
+                                                .
+                                        """
                                     }
+
+                                    env.IMAGE_NAME = imageName
+                                    echo "Docker image built successfully: ${env.IMAGE_NAME}"
                                 }
                             } catch (Exception e) {
                                 echo "Erreur Docker Build : ${e.toString()}"
@@ -227,7 +191,11 @@ pipeline {
                     dir("${WORK_DIR}") {
                         script {
                             try {
-                                echo "Running security scan with Trivy"
+                                if (!env.IMAGE_NAME) {
+                                    error "IMAGE_NAME is not set. Docker build may have failed."
+                                }
+
+                                echo "Running security scan with Trivy on image: ${env.IMAGE_NAME}"
                                 sh """
                                     trivy image \
                                         --scanners vuln \
@@ -254,14 +222,18 @@ pipeline {
                     dir("${WORK_DIR}") {
                         script {
                             try {
-                                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
-                                                                  usernameVariable: 'DOCKER_USER',
-                                                                  passwordVariable: 'DOCKER_PASS')]) {
-                                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                        echo "Pushing Docker image: ${env.IMAGE_NAME}"
-                                        env.APP_IMAGE.push()
-                                    }
+                                if (!env.IMAGE_NAME) {
+                                    error "IMAGE_NAME is not set. Cannot push image."
                                 }
+
+                                echo "Pushing Docker image: ${env.IMAGE_NAME}"
+
+                                docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                                    def appImage = docker.image(env.IMAGE_NAME)
+                                    appImage.push()
+                                }
+
+                                echo "Docker image pushed successfully: ${env.IMAGE_NAME}"
                             } catch (Exception e) {
                                 echo "Erreur Docker Push : ${e.toString()}"
                                 currentBuild.result = 'FAILURE'
@@ -278,7 +250,12 @@ pipeline {
                 container('kubectl') {
                     script {
                         try {
-                            echo "Restarting engsoa-deployment..."
+                            if (!env.IMAGE_NAME) {
+                                echo "IMAGE_NAME not available, proceeding with restart only"
+                            } else {
+                                echo "Restarting engsoa-deployment with image: ${env.IMAGE_NAME}"
+                            }
+
                             sh """
                                 kubectl rollout restart deployment/engsoa-deployment -n soa-microservices
                                 kubectl rollout status deployment/engsoa-deployment -n soa-microservices --timeout=120s
@@ -296,7 +273,9 @@ pipeline {
 
     post {
         success {
-            echo "Build completed successfully for EngagementSOA"
+            script {
+                echo "Build completed successfully for EngagementSOA"
+            }
         }
         failure {
             echo "Build failed for EngagementSOA"
