@@ -158,14 +158,18 @@ pipeline {
                                                                   usernameVariable: 'DOCKER_USER',
                                                                   passwordVariable: 'DOCKER_PASS')]) {
                                     def imageName = "${DOCKER_USER}/chatsoa:${IMAGE_TAG}"
-                                    echo "Building Docker image: ${imageName}"
+                                    echo "Building Docker image with BuildKit and cache-from: ${imageName}"
 
                                     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                        def appImage = docker.build(imageName)
-                                        env.IMAGE_NAME = imageName  // fixé ici
-                                        env.DOCKER_IMAGE = appImage.id
+                                        sh """
+                                            DOCKER_BUILDKIT=1 docker build \
+                                                --cache-from=${DOCKER_USER}/chatsoa:latest \
+                                                --tag ${imageName} \
+                                                .
+                                        """
                                     }
 
+                                    env.IMAGE_NAME = imageName
                                     echo "Docker image built successfully: ${env.IMAGE_NAME}"
                                 }
                             } catch (Exception e) {
@@ -178,7 +182,6 @@ pipeline {
                 }
             }
         }
-
         stage('Trivy Scan') {
             steps {
                 container('trivy') {
@@ -270,14 +273,14 @@ pipeline {
         success {
             script {
                 if (env.IMAGE_NAME) {
-                    echo "✅ Build completed successfully for ChatSOA with image ${env.IMAGE_NAME}"
+                    echo "Build completed successfully for ChatSOA with image ${env.IMAGE_NAME}"
                 } else {
-                    echo "✅ Build completed successfully for ChatSOA"
+                    echo "Build completed successfully for ChatSOA"
                 }
             }
         }
         failure {
-            echo "❌ Build failed for ChatSOA"
+            echo "Build failed for ChatSOA"
         }
     }
 }
