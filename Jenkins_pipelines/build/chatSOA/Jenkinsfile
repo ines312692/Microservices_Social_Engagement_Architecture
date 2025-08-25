@@ -195,7 +195,7 @@ pipeline {
             }
         }
 
-        stage('Docker Build & Push') {
+        stage('Docker Build') {
             steps {
                 container('docker') {
                     dir("${WORK_DIR}") {
@@ -205,27 +205,65 @@ pipeline {
                                                                   usernameVariable: 'DOCKER_USER',
                                                                   passwordVariable: 'DOCKER_PASS')]) {
                                     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                        def imageName = "${DOCKER_USER}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}"
-                                        def appImage = docker.build(imageName)
-
-                                        echo "Running security scan with Trivy"
-                                        sh """
-                                            docker run --rm \
-                                                -v /var/run/docker.sock:/var/run/docker.sock \
-                                                aquasec/trivy image \
-                                                --scanners vuln \
-                                                --vuln-type os \
-                                                --severity CRITICAL,HIGH \
-                                                --exit-code 1 \
-                                                --no-progress \
-                                                ${imageName}
-                                        """
-
-                                        appImage.push()
+                                        env.IMAGE_NAME = "${DOCKER_USER}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}"
+                                        env.APP_IMAGE = docker.build(env.IMAGE_NAME)
+                                        echo "Docker image built: ${env.IMAGE_NAME}"
                                     }
                                 }
                             } catch (Exception e) {
-                                echo "Erreur Docker Build/Push : ${e.toString()}"
+                                echo "Erreur Docker Build : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Trivy Scan') {
+            steps {
+                container('trivy') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            try {
+                                echo "Running security scan with Trivy"
+                                sh """
+                                    trivy image \
+                                        --scanners vuln \
+                                        --vuln-type os \
+                                        --severity CRITICAL,HIGH \
+                                        --exit-code 1 \
+                                        --no-progress \
+                                        ${env.IMAGE_NAME}
+                                """
+                            } catch (Exception e) {
+                                echo "Erreur Trivy Scan : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                container('docker') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            try {
+                                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                                                                  usernameVariable: 'DOCKER_USER',
+                                                                  passwordVariable: 'DOCKER_PASS')]) {
+                                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                                        echo "Pushing Docker image: ${env.IMAGE_NAME}"
+                                        env.APP_IMAGE.push()
+                                    }
+                                }
+                            } catch (Exception e) {
+                                echo "Erreur Docker Push : ${e.toString()}"
                                 currentBuild.result = 'FAILURE'
                                 throw e
                             }
