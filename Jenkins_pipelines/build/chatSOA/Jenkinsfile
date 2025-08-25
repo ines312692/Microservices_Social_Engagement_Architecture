@@ -228,7 +228,6 @@ pipeline {
                                 docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
                                     def appImage = docker.image(env.IMAGE_NAME)
                                     appImage.push()
-                                    appImage.push(env.IMAGE_TAG)
                                 }
 
                                 echo "Docker image pushed successfully: ${env.IMAGE_NAME}"
@@ -272,11 +271,7 @@ pipeline {
     post {
         success {
             script {
-                if (env.IMAGE_NAME) {
-                    echo "Build completed successfully for ChatSOA with image ${env.IMAGE_NAME}"
-                } else {
                     echo "Build completed successfully for ChatSOA"
-                }
             }
         }
         failure {
