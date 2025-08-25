@@ -2,7 +2,7 @@ pipeline {
     agent {
         kubernetes {
             inheritFrom 'build-chat'
-            defaultContainer 'gradle'
+            defaultContainer 'kubectl'
             namespace 'soa-microservices'
             serviceAccount 'chatsoa-deployer'
         }
@@ -17,25 +17,25 @@ pipeline {
     }
 
     environment {
-        DOCKERHUB_IMAGE = 'k-chatsoa'
-        IMAGE_TAG = "${BUILD_NUMBER}-latest"
-        DOCKER_BUILDKIT = '1'
+        IMAGE_TAG         = 'latest'
+        DOCKER_BUILDKIT   = '1'
         GRADLE_CACHE_PATH = '/mnt/gradle_cache'
-        GRADLE_USER_HOME = "${GRADLE_CACHE_PATH}"
-        REPO_URL = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
-        SONARQUBE_SERVER = 'sonarqube-local'
-        WORK_DIR = "${WORKSPACE}/chatSOA/chatSOA"
+        GRADLE_USER_HOME  = "${GRADLE_CACHE_PATH}"
+        REPO_URL          = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
+        SONARQUBE_SERVER  = 'sonarqube-local'
+        WORK_DIR          = "${WORKSPACE}/chatSOA/chatSOA"
     }
 
     options {
         skipDefaultCheckout(true)
+        timeout(time: 30, unit: 'MINUTES')
     }
+
     triggers {
         githubPush()
-      }
+    }
 
     stages {
-
         stage('Checkout') {
             steps {
                 script {
@@ -48,7 +48,8 @@ pipeline {
                                 userRemoteConfigs: [[url: "${REPO_URL}"]],
                                 extensions: [
                                     [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
-                                    [$class: 'LocalBranch', localBranch: "${params.TARGET_BRANCH}"]
+                                    [$class: 'LocalBranch', localBranch: "${params.TARGET_BRANCH}"],
+                                    [$class: 'CleanBeforeCheckout']
                                 ]
                             ])
                         }
@@ -63,13 +64,35 @@ pipeline {
 
         stage('Préparer Cache') {
             steps {
-                script {
-                    try {
-                        sh "chmod +x ./gradlew"
-                    } catch (Exception e) {
-                        echo "Erreur préparation cache : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
+                container('gradle') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            try {
+                                sh "chmod +x ./gradlew"
+                                sh "[ -d ${GRADLE_CACHE_PATH} ] || mkdir -p ${GRADLE_CACHE_PATH}"
+                            } catch (Exception e) {
+                                echo "Erreur préparation cache : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Prewarm Gradle Daemon') {
+            steps {
+                container('gradle') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            try {
+                                echo "Prewarming Gradle daemon..."
+                                sh "./gradlew --daemon help || true"
+                            } catch (Exception e) {
+                                echo "Erreur Prewarm Gradle : ${e.toString()}"
+                            }
+                        }
                     }
                 }
             }
@@ -77,13 +100,26 @@ pipeline {
 
         stage('Build Gradle') {
             steps {
-                script {
-                    try {
-                        sh "./gradlew clean build --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}"
-                    } catch (Exception e) {
-                        echo "Erreur Build Gradle : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
+                container('gradle') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            try {
+                                sh """
+                                    ./gradlew assemble \
+                                        --parallel \
+                                        --max-workers=4 \
+                                        --project-cache-dir=${GRADLE_CACHE_PATH} \
+                                        --daemon \
+                                        --configure-on-demand \
+                                        --build-cache \
+                                        --no-scan
+                                """
+                            } catch (Exception e) {
+                                echo "Erreur Build Gradle : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
+                        }
                     }
                 }
             }
@@ -91,73 +127,155 @@ pipeline {
 
         stage('Unit Tests') {
             steps {
-                script {
-                    try {
-                        sh "./gradlew test --parallel --max-workers=4 --project-cache-dir=${GRADLE_CACHE_PATH}"
-                    } catch (Exception e) {
-                        echo "Erreur Unit Tests : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
-                    }
-                }
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                script {
-                    try {
-                        withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                            sh """
-                                ./gradlew sonar \
-                                    -Dsonar.projectKey=chatSOA \
-                                    -Dsonar.java.binaries=build/classes/java/main \
-                                    -Dsonar.junit.reportPaths=build/test-results/test \
-                                    -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml
-                            """
+                container('gradle') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            try {
+                                sh """
+                                    ./gradlew test \
+                                        --parallel \
+                                        --max-workers=4 \
+                                        --project-cache-dir=${GRADLE_CACHE_PATH}
+                                """
+                            } catch (Exception e) {
+                                echo "Erreur Unit Tests : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
                         }
-                    } catch (Exception e) {
-                        echo "Erreur SonarQube : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
                     }
                 }
             }
         }
 
-        stage('Docker Build & Push') {
+        stage('Docker Build') {
             steps {
-                script {
-                    try {
-                        withCredentials([usernamePassword(
-                            credentialsId: 'dockerhub-creds',
-                            usernameVariable: 'DOCKER_USER',
-                            passwordVariable: 'DOCKER_PASS'
-                        )]) {
-                            sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
-                            sh """
-                                docker buildx build --push \
-                                    --build-arg BUILDKIT_INLINE_CACHE=1 \
-                                    --cache-from=type=registry,ref=$DOCKER_USER/${DOCKERHUB_IMAGE}:latest \
-                                    -t $DOCKER_USER/${DOCKERHUB_IMAGE}:${IMAGE_TAG} \
-                                    -t $DOCKER_USER/${DOCKERHUB_IMAGE}:latest \
-                                    -f Dockerfile \
-                                    .
-                            """
+                container('docker') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            try {
+                                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                                                                  usernameVariable: 'DOCKER_USER',
+                                                                  passwordVariable: 'DOCKER_PASS')]) {
+                                    def imageName = "${DOCKER_USER}/chatsoa:${IMAGE_TAG}"
+                                    echo "Building Docker image with BuildKit and cache-from: ${imageName}"
+
+                                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                                        sh """
+                                            DOCKER_BUILDKIT=1 docker build \
+                                                --cache-from=${DOCKER_USER}/chatsoa:latest \
+                                                --tag ${imageName} \
+                                                .
+                                        """
+                                    }
+
+                                    env.IMAGE_NAME = imageName
+                                    echo "Docker image built successfully: ${env.IMAGE_NAME}"
+                                }
+                            } catch (Exception e) {
+                                echo "Erreur Docker Build : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
                         }
-                    } catch (Exception e) {
-                        echo "Erreur Docker Build & Push : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
+                    }
+                }
+            }
+        }
+        stage('Trivy Scan') {
+            steps {
+                container('trivy') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            try {
+                                if (!env.IMAGE_NAME) {
+                                    error "IMAGE_NAME is not set. Docker build may have failed."
+                                }
+
+                                echo "Running security scan with Trivy on image: ${env.IMAGE_NAME}"
+                                sh """
+                                    trivy image \
+                                        --scanners vuln \
+                                        --vuln-type os \
+                                        --severity CRITICAL,HIGH \
+                                        --exit-code 1 \
+                                        --no-progress \
+                                        ${env.IMAGE_NAME}
+                                """
+                            } catch (Exception e) {
+                                echo "Erreur Trivy Scan : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
+                        }
                     }
                 }
             }
         }
 
+        stage('Docker Push') {
+            steps {
+                container('docker') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            try {
+                                if (!env.IMAGE_NAME) {
+                                    error "IMAGE_NAME is not set. Cannot push image."
+                                }
+
+                                echo "Pushing Docker image: ${env.IMAGE_NAME}"
+
+                                docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                                    def appImage = docker.image(env.IMAGE_NAME)
+                                    appImage.push()
+                                }
+
+                                echo "Docker image pushed successfully: ${env.IMAGE_NAME}"
+                            } catch (Exception e) {
+                                echo "Erreur Docker Push : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Restart Deploy to Kubernetes') {
+            steps {
+                container('kubectl') {
+                    script {
+                        try {
+                            if (!env.IMAGE_NAME) {
+                                echo "IMAGE_NAME not available, proceeding with restart only"
+                            } else {
+                                echo "Restarting chatsoa-deployment with image: ${env.IMAGE_NAME}"
+                            }
+
+                            sh """
+                                kubectl rollout restart deployment/chatsoa-deployment -n soa-microservices
+                                kubectl rollout status deployment/chatsoa-deployment -n soa-microservices --timeout=120s
+                            """
+                        } catch (Exception e) {
+                            echo "Erreur Restart Deploy : ${e.toString()}"
+                            currentBuild.result = 'FAILURE'
+                            throw e
+                        }
+                    }
+                }
+            }
+        }
     }
 
     post {
-        success { echo "Build terminé avec succès pour ChatSOA" }
-        failure { echo "Build échoué pour ChatSOA" }
+        success {
+            script {
+                    echo "Build completed successfully for ChatSOA"
+            }
+        }
+        failure {
+            echo "Build failed for ChatSOA"
+        }
     }
 }
