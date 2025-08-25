@@ -217,8 +217,10 @@ pipeline {
                                                                   usernameVariable: 'DOCKER_USER',
                                                                   passwordVariable: 'DOCKER_PASS')]) {
                                     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                        echo "Pushing Docker image: ${env.IMAGE_NAME}"
-                                        env.APP_IMAGE.push()
+                                        def appImage = docker.build("${DOCKER_USER}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}")
+                                        echo "Docker image built: ${appImage.imageName()}"
+                                        echo "Pushing Docker image: ${appImage.imageName()}"
+                                        appImage.push()
                                     }
                                 }
                             } catch (Exception e) {
