@@ -18,13 +18,14 @@ pipeline {
 
     environment {
         DOCKERHUB_IMAGE   = 'k-chatsoa'
-        IMAGE_TAG         = "latest"
+        IMAGE_TAG         = 'latest'
         DOCKER_BUILDKIT   = '1'
         GRADLE_CACHE_PATH = '/mnt/gradle_cache'
         GRADLE_USER_HOME  = "${GRADLE_CACHE_PATH}"
         REPO_URL          = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
         SONARQUBE_SERVER  = 'sonarqube-local'
         WORK_DIR          = "${WORKSPACE}/chatSOA/chatSOA"
+        IMAGE_NAME        = ''
     }
 
     options {
@@ -37,7 +38,6 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 script {
@@ -150,10 +150,6 @@ pipeline {
             }
         }
 
-
-
-
-
         stage('Docker Build') {
             steps {
                 container('docker') {
@@ -165,8 +161,8 @@ pipeline {
                                                                   passwordVariable: 'DOCKER_PASS')]) {
                                     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
                                         env.IMAGE_NAME = "${DOCKER_USER}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}"
-                                        env.APP_IMAGE = docker.build(env.IMAGE_NAME)
-                                        echo "Docker image built: ${env.IMAGE_NAME}"
+                                        def appImage = docker.build(env.IMAGE_NAME)
+                                        echo "Docker image built: ${env.IMAGE_NAME} with tag ${IMAGE_TAG}"
                                     }
                                 }
                             } catch (Exception e) {
@@ -186,7 +182,7 @@ pipeline {
                     dir("${WORK_DIR}") {
                         script {
                             try {
-                                echo "Running security scan with Trivy"
+                                echo "Running security scan with Trivy on image: ${env.IMAGE_NAME}"
                                 sh """
                                     trivy image \
                                         --scanners vuln \
@@ -217,9 +213,8 @@ pipeline {
                                                                   usernameVariable: 'DOCKER_USER',
                                                                   passwordVariable: 'DOCKER_PASS')]) {
                                     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                        def appImage = docker.build("${DOCKER_USER}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}")
-                                        echo "Docker image built: ${appImage.imageName()}"
-                                        echo "Pushing Docker image: ${appImage.imageName()}"
+                                        def appImage = docker.image(env.IMAGE_NAME)
+                                        echo "Pushing Docker image: ${env.IMAGE_NAME} with tag ${IMAGE_TAG}"
                                         appImage.push()
                                     }
                                 }
@@ -239,7 +234,7 @@ pipeline {
                 container('kubectl') {
                     script {
                         try {
-                            echo "Restarting chatsoa-deployment..."
+                            echo "Restarting chatsoa-deployment with image: ${env.IMAGE_NAME}"
                             sh """
                                 kubectl rollout restart deployment/chatsoa-deployment -n soa-microservices
                                 kubectl rollout status deployment/chatsoa-deployment -n soa-microservices --timeout=120s
@@ -257,7 +252,7 @@ pipeline {
 
     post {
         success {
-            echo "Build completed successfully for ChatSOA"
+            echo "Build completed successfully for ChatSOA with image ${env.IMAGE_NAME}"
         }
         failure {
             echo "Build failed for ChatSOA"
