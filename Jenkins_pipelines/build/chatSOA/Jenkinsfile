@@ -159,11 +159,16 @@ pipeline {
                                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
                                                                   usernameVariable: 'DOCKER_USER',
                                                                   passwordVariable: 'DOCKER_PASS')]) {
+                                    env.DOCKER_USER = DOCKER_USER
                                     env.IMAGE_NAME = "${DOCKER_USER}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}"
+
+                                    echo "Building Docker image: ${env.IMAGE_NAME}"
+
                                     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                        def appImage = docker.build(env.IMAGE_NAME)
-                                        echo "Docker image built: ${env.IMAGE_NAME} with tag ${IMAGE_TAG}"
+                                        env.DOCKER_IMAGE = docker.build(env.IMAGE_NAME).id
                                     }
+
+                                    echo "Docker image built successfully: ${env.IMAGE_NAME}"
                                 }
                             } catch (Exception e) {
                                 echo "Erreur Docker Build : ${e.toString()}"
@@ -182,6 +187,10 @@ pipeline {
                     dir("${WORK_DIR}") {
                         script {
                             try {
+                                if (!env.IMAGE_NAME) {
+                                    error "IMAGE_NAME is not set. Docker build may have failed."
+                                }
+
                                 echo "Running security scan with Trivy on image: ${env.IMAGE_NAME}"
                                 sh """
                                     trivy image \
@@ -209,15 +218,19 @@ pipeline {
                     dir("${WORK_DIR}") {
                         script {
                             try {
-                                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
-                                                                  usernameVariable: 'DOCKER_USER',
-                                                                  passwordVariable: 'DOCKER_PASS')]) {
-                                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                        def appImage = docker.image(env.IMAGE_NAME)
-                                        echo "Pushing Docker image: ${env.IMAGE_NAME} with tag ${IMAGE_TAG}"
-                                        appImage.push()
-                                    }
+                                if (!env.IMAGE_NAME) {
+                                    error "IMAGE_NAME is not set. Cannot push image."
                                 }
+
+                                echo "Pushing Docker image: ${env.IMAGE_NAME}"
+
+                                docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                                    def appImage = docker.image(env.IMAGE_NAME)
+                                    appImage.push()
+                                    appImage.push(IMAGE_TAG)
+                                }
+
+                                echo "Docker image pushed successfully: ${env.IMAGE_NAME}"
                             } catch (Exception e) {
                                 echo "Erreur Docker Push : ${e.toString()}"
                                 currentBuild.result = 'FAILURE'
@@ -234,7 +247,12 @@ pipeline {
                 container('kubectl') {
                     script {
                         try {
-                            echo "Restarting chatsoa-deployment with image: ${env.IMAGE_NAME}"
+                            if (!env.IMAGE_NAME) {
+                                echo "IMAGE_NAME not available, proceeding with restart only"
+                            } else {
+                                echo "Restarting chatsoa-deployment with image: ${env.IMAGE_NAME}"
+                            }
+
                             sh """
                                 kubectl rollout restart deployment/chatsoa-deployment -n soa-microservices
                                 kubectl rollout status deployment/chatsoa-deployment -n soa-microservices --timeout=120s
@@ -252,10 +270,28 @@ pipeline {
 
     post {
         success {
-            echo "Build completed successfully for ChatSOA with image ${env.IMAGE_NAME}"
+            script {
+                if (env.IMAGE_NAME) {
+                    echo "Build completed successfully for ChatSOA with image ${env.IMAGE_NAME}"
+                } else {
+                    echo "Build completed successfully for ChatSOA"
+                }
+            }
         }
         failure {
             echo "Build failed for ChatSOA"
+        }
+        always {
+            // Nettoyage optionnel
+            script {
+                try {
+                    container('docker') {
+                        sh "docker system prune -f || true"
+                    }
+                } catch (Exception e) {
+                    echo "Nettoyage Docker échoué : ${e.toString()}"
+                }
+            }
         }
     }
 }
