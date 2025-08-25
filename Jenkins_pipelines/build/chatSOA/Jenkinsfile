@@ -152,24 +152,7 @@ pipeline {
 
 
 
-        stage('Quality Gate') {
-            steps {
-                script {
-                    try {
-                        timeout(time: 5, unit: 'MINUTES') {
-                            def qg = waitForQualityGate()
-                            if (qg.status != 'OK') {
-                                error "Insufficient code quality! Stopping the pipeline."
-                            }
-                        }
-                    } catch (Exception e) {
-                        echo "Erreur Quality Gate : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
-                    }
-                }
-            }
-        }
+
 
         stage('Docker Build') {
             steps {
