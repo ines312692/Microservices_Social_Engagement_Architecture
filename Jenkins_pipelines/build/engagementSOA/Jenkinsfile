@@ -165,10 +165,9 @@ pipeline {
 
                                     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
                                         sh """
-                                            DOCKER_BUILDKIT=1 docker build \
-                                                --cache-from=${DOCKER_USER}/engsoa:latest \
-                                                --tag ${imageName} \
-                                                .
+                                            docker build \
+                                                                                                   --tag ${imageName} \
+                                                                                                   .
                                         """
                                     }
 
