@@ -17,7 +17,6 @@ pipeline {
     }
 
     environment {
-        DOCKERHUB_IMAGE   = 'k-chatsoa'
         IMAGE_TAG         = 'latest'
         DOCKER_BUILDKIT   = '1'
         GRADLE_CACHE_PATH = '/mnt/gradle_cache'
@@ -25,8 +24,8 @@ pipeline {
         REPO_URL          = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
         SONARQUBE_SERVER  = 'sonarqube-local'
         WORK_DIR          = "${WORKSPACE}/chatSOA/chatSOA"
-        // Variables pour Docker - seront définies dynamiquement
         IMAGE_NAME        = ''
+        DOCKER_USER       = ''
     }
 
     options {
@@ -58,6 +57,29 @@ pipeline {
                         }
                     } catch (Exception e) {
                         echo "Erreur Checkout : ${e.toString()}"
+                        currentBuild.result = 'FAILURE'
+                        throw e
+                    }
+                }
+            }
+        }
+
+        stage('Set Docker Variables') {
+            steps {
+                script {
+                    try {
+                        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                                                          usernameVariable: 'DOCKER_USER',
+                                                          passwordVariable: 'DOCKER_PASS')]) {
+                            env.DOCKER_USER = DOCKER_USER
+                            env.DOCKERHUB_IMAGE = 'chatsoa'
+                            env.IMAGE_NAME = "${DOCKER_USER}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}"
+
+                            echo "Docker user: ${env.DOCKER_USER}"
+                            echo "Image name will be: ${env.IMAGE_NAME}"
+                        }
+                    } catch (Exception e) {
+                        echo "Erreur définition variables Docker : ${e.toString()}"
                         currentBuild.result = 'FAILURE'
                         throw e
                     }
@@ -157,22 +179,18 @@ pipeline {
                     dir("${WORK_DIR}") {
                         script {
                             try {
-                                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
-                                                                  usernameVariable: 'DOCKER_USER',
-                                                                  passwordVariable: 'DOCKER_PASS')]) {
-
-                                    env.DOCKER_USER = DOCKER_USER
-                                    env.DOCKERHUB_IMAGE='chatsoa'
-                                    env.IMAGE_NAME = "${DOCKER_USER}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}"
-
-                                    echo "Building Docker image: ${env.IMAGE_NAME}"
-
-                                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                        env.DOCKER_IMAGE = docker.build(env.IMAGE_NAME).id
-                                    }
-
-                                    echo "Docker image built successfully: ${env.IMAGE_NAME}"
+                                if (!env.IMAGE_NAME) {
+                                    error "IMAGE_NAME is not set. Variables may not have been initialized."
                                 }
+
+                                echo "Building Docker image: ${env.IMAGE_NAME}"
+
+                                docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                                    def appImage = docker.build(env.IMAGE_NAME)
+                                    env.DOCKER_IMAGE = appImage.id
+                                }
+
+                                echo "Docker image built successfully: ${env.IMAGE_NAME}"
                             } catch (Exception e) {
                                 echo "Erreur Docker Build : ${e.toString()}"
                                 currentBuild.result = 'FAILURE'
@@ -228,10 +246,9 @@ pipeline {
                                 echo "Pushing Docker image: ${env.IMAGE_NAME}"
 
                                 docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-
                                     def appImage = docker.image(env.IMAGE_NAME)
                                     appImage.push()
-                                    appImage.push(IMAGE_TAG) // Push avec le tag spécifique aussi
+                                    appImage.push(IMAGE_TAG)
                                 }
 
                                 echo "Docker image pushed successfully: ${env.IMAGE_NAME}"
