@@ -159,8 +159,8 @@ pipeline {
                                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
                                                                   usernameVariable: 'DOCKER_USER',
                                                                   passwordVariable: 'DOCKER_PASS')]) {
+                                    env.IMAGE_NAME = "${DOCKER_USER}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}"
                                     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                        env.IMAGE_NAME = "${DOCKER_USER}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}"
                                         def appImage = docker.build(env.IMAGE_NAME)
                                         echo "Docker image built: ${env.IMAGE_NAME} with tag ${IMAGE_TAG}"
                                     }

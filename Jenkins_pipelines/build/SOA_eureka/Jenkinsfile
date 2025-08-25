@@ -4,7 +4,7 @@ pipeline {
             inheritFrom 'build-eureka'
             defaultContainer 'kubectl'
             namespace 'soa-microservices'
-            serviceAccount 'eureka-deployer'
+            serviceAccount 'chatsoa-deployer'
         }
     }
 
