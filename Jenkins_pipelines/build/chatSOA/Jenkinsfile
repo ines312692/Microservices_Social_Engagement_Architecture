@@ -29,6 +29,7 @@ pipeline {
 
     options {
         skipDefaultCheckout(true)
+        timeout(time: 30, unit: 'MINUTES')
     }
 
     triggers {
@@ -42,7 +43,6 @@ pipeline {
                 script {
                     try {
                         echo "Checkout depuis la branche ${params.TARGET_BRANCH}"
-
                         retry(2) {
                             checkout([
                                 $class: 'GitSCM',
@@ -55,7 +55,6 @@ pipeline {
                                 ]
                             ])
                         }
-
                     } catch (Exception e) {
                         echo "Erreur Checkout : ${e.toString()}"
                         currentBuild.result = 'FAILURE'
@@ -89,8 +88,12 @@ pipeline {
                 container('gradle') {
                     dir("${WORK_DIR}") {
                         script {
-                            echo "Prewarming Gradle daemon..."
-                            sh "./gradlew --daemon help || true"
+                            try {
+                                echo "Prewarming Gradle daemon..."
+                                sh "./gradlew --daemon help || true"
+                            } catch (Exception e) {
+                                echo "Erreur Prewarm Gradle : ${e.toString()}"
+                            }
                         }
                     }
                 }
@@ -149,19 +152,42 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
+                container('gradle') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            try {
+                                withSonarQubeEnv("${SONARQUBE_SERVER}") {
+                                    sh """
+                                        ./gradlew sonar \
+                                            -Dsonar.projectKey=chatSOA \
+                                            -Dsonar.java.binaries=build/classes/java/main \
+                                            -Dsonar.junit.reportPaths=build/test-results/test \
+                                            -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml
+                                    """
+                                }
+                            } catch (Exception e) {
+                                echo "Erreur SonarQube : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
                 script {
                     try {
-                        withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                            sh """
-                                ./gradlew sonar \
-                                    -Dsonar.projectKey=chatSOA \
-                                    -Dsonar.java.binaries=build/classes/java/main \
-                                    -Dsonar.junit.reportPaths=build/test-results/test \
-                                    -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml
-                            """
+                        timeout(time: 5, unit: 'MINUTES') {
+                            def qg = waitForQualityGate()
+                            if (qg.status != 'OK') {
+                                error "Code quality insuffisante ! Arrêt du pipeline."
+                            }
                         }
                     } catch (Exception e) {
-                        echo "Erreur SonarQube : ${e.toString()}"
+                        echo "Erreur Quality Gate : ${e.toString()}"
                         currentBuild.result = 'FAILURE'
                         throw e
                     }
@@ -170,14 +196,17 @@ pipeline {
         }
 
         stage('Docker Build & Push') {
-                    steps {
+            steps {
+                container('docker') {
+                    dir("${WORK_DIR}") {
                         script {
                             try {
-                                echo "Building Docker image and pushing to DockerHub"
-                                dir("${WORK_DIR}") {
+                                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                                                                  usernameVariable: 'DOCKER_USER',
+                                                                  passwordVariable: 'DOCKER_PASS')]) {
                                     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                        def imageName = "${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}"
-                                        def appImage = docker.build(imageName, "-f Dockerfile .")
+                                        def imageName = "${DOCKER_USER}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}"
+                                        def appImage = docker.build(imageName)
 
                                         echo "Running security scan with Trivy"
                                         sh """
@@ -191,19 +220,20 @@ pipeline {
                                                 --no-progress \
                                                 ${imageName}
                                         """
-                                            appImage.push()
 
+                                        appImage.push()
                                     }
                                 }
                             } catch (Exception e) {
-                                echo "Docker build/push failed: ${e.message}"
+                                echo "Erreur Docker Build/Push : ${e.toString()}"
                                 currentBuild.result = 'FAILURE'
                                 throw e
                             }
                         }
                     }
                 }
-
+            }
+        }
 
         stage('Restart Deploy to Kubernetes') {
             steps {
@@ -216,7 +246,7 @@ pipeline {
                                 kubectl rollout status deployment/chatsoa-deployment -n soa-microservices --timeout=120s
                             """
                         } catch (Exception e) {
-                            echo "Error while restarting deployment: ${e.toString()}"
+                            echo "Erreur Restart Deploy : ${e.toString()}"
                             currentBuild.result = 'FAILURE'
                             throw e
                         }
@@ -224,7 +254,6 @@ pipeline {
                 }
             }
         }
-
     }
 
     post {
