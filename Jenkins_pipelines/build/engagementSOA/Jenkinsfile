@@ -148,6 +148,25 @@ pipeline {
                 }
             }
         }
+        stage('Debug JAR Location') {
+            steps {
+                container('gradle') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            try {
+                                echo "Listing contents of build/libs before Docker build"
+                                sh "ls -l build/libs || echo 'No JARs found!'"
+                                sh "pwd"
+                                sh "ls -l"
+                            } catch (Exception e) {
+                                echo "Erreur Debug JAR : ${e.toString()}"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
 
 
 
