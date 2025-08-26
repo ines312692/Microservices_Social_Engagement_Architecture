@@ -2,7 +2,7 @@ pipeline {
     agent {
         kubernetes {
             inheritFrom 'build-chat'
-            defaultContainer 'kubectl'
+            defaultContainer 'multitool'
             namespace 'soa-microservices'
             serviceAccount 'chatsoa-deployer'
         }
@@ -36,101 +36,197 @@ pipeline {
     }
 
     stages {
-       stage('Build Multi-Tool Container') {
-           steps {
-               container('docker') {
-                   script {
-                       try {
-                           // Créer le Dockerfile avec kubectl + gradle + trivy + docker
-                           writeFile file: 'Dockerfile.multitool', text: '''FROM openjdk:17-jdk-slim
-
-       # Variables d'environnement
-       ENV GRADLE_VERSION=8.5
-       ENV KUBECTL_VERSION=v1.28.4
-       ENV TRIVY_VERSION=0.48.1
-
-       # Installer les dépendances de base
-       RUN apt-get update && \\
-           apt-get install -y --no-install-recommends \\
-               curl \\
-               wget \\
-               ca-certificates \\
-               bash \\
-               git \\
-               vim \\
-               gnupg \\
-               unzip && \\
-           apt-get clean && \\
-           rm -rf /var/lib/apt/lists/*
-
-       # Installer kubectl
-       RUN curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" && \\
-           chmod +x kubectl && \\
-           mv kubectl /usr/local/bin/
-
-       # Installer Gradle
-       RUN wget -q https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip && \\
-           unzip gradle-${GRADLE_VERSION}-bin.zip -d /opt && \\
-           rm gradle-${GRADLE_VERSION}-bin.zip && \\
-           ln -s /opt/gradle-${GRADLE_VERSION}/bin/gradle /usr/local/bin/gradle
-
-       # Installer Trivy
-       RUN wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | tee /usr/share/keyrings/trivy.gpg > /dev/null && \\
-           echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb bullseye main" | tee -a /etc/apt/sources.list.d/trivy.list && \\
-           apt-get update && \\
-           apt-get install -y trivy && \\
-           apt-get clean && \\
-           rm -rf /var/lib/apt/lists/*
-
-       # Configurer Gradle
-       ENV GRADLE_HOME=/opt/gradle-${GRADLE_VERSION}
-       ENV PATH=${GRADLE_HOME}/bin:${PATH}
-       ENV GRADLE_USER_HOME=/home/gradle/.gradle
-
-       # Créer les répertoires nécessaires
-       RUN mkdir -p /home/gradle/.gradle && \\
-           mkdir -p /home/jenkins/agent
-
-       # Définir le shell par défaut
-       SHELL ["/bin/bash", "-c"]
-       WORKDIR /home/jenkins/agent
-
-       # Vérifier les installations
-       RUN echo "=== Vérification des outils installés ===" && \\
-           java -version && \\
-           gradle --version && \\
-           kubectl version --client && \\
-           trivy --version
-
-       CMD ["sleep", "9999999"]'''
-
-                           // Builder et pusher l'image multi-outils
-                           docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                               def imageName = "inestmimi123/multitool:latest"
-                               def multiToolImage = docker.build(imageName, "-f Dockerfile.multitool .")
-
-                               echo "🚀 Push de l'image multi-outils vers DockerHub..."
-                               multiToolImage.push()
-                               multiToolImage.push("build-${BUILD_NUMBER}")
-                               multiToolImage.push("v1.0")
-
-                               echo "✅ Image multi-outils créée avec succès: ${imageName}"
-                               echo "📋 Contient: OpenJDK 17 + Gradle 8.5 + kubectl v1.28.4 + Trivy 0.48.1"
+       stage('Checkout') {
+                   steps {
+                       script {
+                           try {
+                               echo "Checkout depuis la branche ${params.TARGET_BRANCH}"
+                               retry(2) {
+                                   checkout([
+                                       $class: 'GitSCM',
+                                       branches: [[name: "*/${params.TARGET_BRANCH}"]],
+                                       userRemoteConfigs: [[url: "${REPO_URL}"]],
+                                       extensions: [
+                                           [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
+                                           [$class: 'LocalBranch', localBranch: "${params.TARGET_BRANCH}"],
+                                           [$class: 'CleanBeforeCheckout']
+                                       ]
+                                   ])
+                               }
+                           } catch (Exception e) {
+                               echo "Erreur Checkout : ${e.toString()}"
+                               currentBuild.result = 'FAILURE'
+                               throw e
                            }
+                       }
+                   }
+               }
 
-                           // Nettoyer le Dockerfile temporaire
-                           sh "rm -f Dockerfile.multitool"
+               stage('Préparer Cache') {
+                   steps {
+                       dir("${WORK_DIR}") {
+                           script {
+                               try {
+                                   sh "chmod +x ./gradlew"
+                                   sh "[ -d ${GRADLE_CACHE_PATH} ] || mkdir -p ${GRADLE_CACHE_PATH}"
+                                   sh "gradle --version"  // Vérifier que Gradle fonctionne
+                               } catch (Exception e) {
+                                   echo "Erreur préparation cache : ${e.toString()}"
+                                   currentBuild.result = 'FAILURE'
+                                   throw e
+                               }
+                           }
+                       }
+                   }
+               }
 
-                       } catch (Exception e) {
-                           echo "❌ Erreur Build & Push Multi-Tool Container : ${e.toString()}"
-                           currentBuild.result = 'FAILURE'
-                           throw e
+               stage('Prewarm Gradle Daemon') {
+                   steps {
+                       dir("${WORK_DIR}") {
+                           script {
+                               try {
+                                   echo "Prewarming Gradle daemon..."
+                                   sh "./gradlew --daemon help || true"
+                               } catch (Exception e) {
+                                   echo "Erreur Prewarm Gradle : ${e.toString()}"
+                               }
+                           }
+                       }
+                   }
+               }
+
+               stage('Build Gradle') {
+                   steps {
+                       dir("${WORK_DIR}") {
+                           script {
+                               try {
+                                   sh """
+                                       ./gradlew assemble \
+                                           --parallel \
+                                           --max-workers=4 \
+                                           --project-cache-dir=${GRADLE_CACHE_PATH} \
+                                           --daemon \
+                                           --configure-on-demand \
+                                           --build-cache \
+                                           --no-scan
+                                   """
+                               } catch (Exception e) {
+                                   echo "Erreur Build Gradle : ${e.toString()}"
+                                   currentBuild.result = 'FAILURE'
+                                   throw e
+                               }
+                           }
+                       }
+                   }
+               }
+
+               stage('Unit Tests') {
+                   steps {
+                       dir("${WORK_DIR}") {
+                           script {
+                               try {
+                                   sh """
+                                       ./gradlew test \
+                                           --parallel \
+                                           --max-workers=4 \
+                                           --project-cache-dir=${GRADLE_CACHE_PATH}
+                                   """
+                               } catch (Exception e) {
+                                   echo "Erreur Unit Tests : ${e.toString()}"
+                                   currentBuild.result = 'FAILURE'
+                                   throw e
+                               }
+                           }
+                       }
+                   }
+               }
+
+               stage('Docker Build') {
+                   steps {
+                       dir("${WORK_DIR}") {
+                           script {
+                               try {
+                                   docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                                       sh """
+                                           DOCKER_BUILDKIT=1 docker build \
+                                               --cache-from=${env.IMAGE_NAME} \
+                                               --tag ${env.IMAGE_NAME} \
+                                               .
+                                       """
+                                   }
+                                   echo "Docker image built successfully: ${env.IMAGE_NAME}"
+                               } catch (Exception e) {
+                                   echo "Erreur Docker Build : ${e.toString()}"
+                                   currentBuild.result = 'FAILURE'
+                                   throw e
+                               }
+                           }
+                       }
+                   }
+               }
+
+               stage('Trivy Scan') {
+                   steps {
+                       dir("${WORK_DIR}") {
+                           script {
+                               try {
+                                   echo "Running security scan with Trivy on image: ${env.IMAGE_NAME}"
+                                   sh """
+                                       trivy image \
+                                           --scanners vuln \
+                                           --vuln-type os \
+                                           --severity CRITICAL,HIGH \
+                                           --exit-code 1 \
+                                           --no-progress \
+                                           ${env.IMAGE_NAME}
+                                   """
+                               } catch (Exception e) {
+                                   echo "Erreur Trivy Scan : ${e.toString()}"
+                                   currentBuild.result = 'FAILURE'
+                                   throw e
+                               }
+                           }
+                       }
+                   }
+               }
+
+               stage('Docker Push') {
+                   steps {
+                       dir("${WORK_DIR}") {
+                           script {
+                               try {
+                                   echo "Pushing Docker image: ${env.IMAGE_NAME}"
+                                   docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                                       docker.image(env.IMAGE_NAME).push()
+                                   }
+                                   echo "Docker image pushed successfully: ${env.IMAGE_NAME}"
+                               } catch (Exception e) {
+                                   echo "Erreur Docker Push : ${e.toString()}"
+                                   currentBuild.result = 'FAILURE'
+                                   throw e
+                               }
+                           }
+                       }
+                   }
+               }
+
+               stage('Restart Deploy to Kubernetes') {
+                   steps {
+                       script {
+                           try {
+                               sh """
+                                   kubectl rollout restart deployment/chatsoa-deployment -n soa-microservices
+                                   kubectl rollout status deployment/chatsoa-deployment -n soa-microservices --timeout=120s
+                               """
+                           } catch (Exception e) {
+                               echo "Erreur Restart Deploy : ${e.toString()}"
+                               currentBuild.result = 'FAILURE'
+                               throw e
+                           }
                        }
                    }
                }
            }
-       }
-    }
 
     post {
         success {
