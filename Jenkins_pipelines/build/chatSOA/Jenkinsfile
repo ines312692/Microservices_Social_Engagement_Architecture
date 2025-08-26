@@ -142,22 +142,6 @@ pipeline {
                        }
                    }
                }
-               stage('Debug Test Reports') {
-                   steps {
-                       dir("${WORK_DIR}") {
-                           script {
-                               sh '''
-                               echo "Current working directory:"
-                               pwd
-                               echo "Listing test-results directory:"
-                               ls -la build/test-results/test/ || echo "test-results directory not found"
-                               echo "Listing reports directory:"
-                               ls -la build/reports/jacoco/test/ || echo "jacoco reports directory not found"
-                               '''
-                           }
-                       }
-                   }
-               }
                stage('SonarQube Analysis') {
                    steps {
                            dir("${WORK_DIR}") {
