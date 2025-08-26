@@ -176,6 +176,7 @@ pipeline {
                     dir("${WORK_DIR}") {
                         script {
                             try {
+                                sh "ls -la build/libs/"
                                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
                                                                   usernameVariable: 'DOCKER_USER',
                                                                   passwordVariable: 'DOCKER_PASS')]) {
