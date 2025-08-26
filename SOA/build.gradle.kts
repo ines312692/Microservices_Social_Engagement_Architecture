@@ -53,7 +53,7 @@ tasks.withType<Test> {
 
 	maxParallelForks = Runtime.getRuntime().availableProcessors()
 	filter {
-		includeTestsMatching("*Test")
+
 		excludeTestsMatching("*IntegrationTest")
 	}
 }
