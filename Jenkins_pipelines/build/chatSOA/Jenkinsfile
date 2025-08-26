@@ -17,7 +17,7 @@ pipeline {
     }
 
     environment {
-        IMAGE_TAG         = 'latest'
+        IMAGE_NAME        = 'inestmimi123/chatsoa:latest'
         DOCKER_BUILDKIT   = '1'
         GRADLE_CACHE_PATH = '/mnt/gradle_cache'
         GRADLE_USER_HOME  = "${GRADLE_CACHE_PATH}"
@@ -36,243 +36,105 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                script {
-                    try {
-                        echo "Checkout depuis la branche ${params.TARGET_BRANCH}"
-                        retry(2) {
-                            checkout([
-                                $class: 'GitSCM',
-                                branches: [[name: "*/${params.TARGET_BRANCH}"]],
-                                userRemoteConfigs: [[url: "${REPO_URL}"]],
-                                extensions: [
-                                    [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
-                                    [$class: 'LocalBranch', localBranch: "${params.TARGET_BRANCH}"],
-                                    [$class: 'CleanBeforeCheckout']
-                                ]
-                            ])
-                        }
-                    } catch (Exception e) {
-                        echo "Erreur Checkout : ${e.toString()}"
-                        currentBuild.result = 'FAILURE'
-                        throw e
-                    }
-                }
-            }
-        }
+       stage('Build Multi-Tool Container') {
+           steps {
+               container('docker') {
+                   script {
+                       try {
+                           // Créer le Dockerfile avec kubectl + gradle + trivy + docker
+                           writeFile file: 'Dockerfile.multitool', text: '''FROM openjdk:17-jdk-slim
 
-        stage('Préparer Cache') {
-            steps {
-                container('gradle') {
-                    dir("${WORK_DIR}") {
-                        script {
-                            try {
-                                sh "chmod +x ./gradlew"
-                                sh "[ -d ${GRADLE_CACHE_PATH} ] || mkdir -p ${GRADLE_CACHE_PATH}"
-                            } catch (Exception e) {
-                                echo "Erreur préparation cache : ${e.toString()}"
-                                currentBuild.result = 'FAILURE'
-                                throw e
-                            }
-                        }
-                    }
-                }
-            }
-        }
+       # Variables d'environnement
+       ENV GRADLE_VERSION=8.5
+       ENV KUBECTL_VERSION=v1.28.4
+       ENV TRIVY_VERSION=0.48.1
 
-        stage('Prewarm Gradle Daemon') {
-            steps {
-                container('gradle') {
-                    dir("${WORK_DIR}") {
-                        script {
-                            try {
-                                echo "Prewarming Gradle daemon..."
-                                sh "./gradlew --daemon help || true"
-                            } catch (Exception e) {
-                                echo "Erreur Prewarm Gradle : ${e.toString()}"
-                            }
-                        }
-                    }
-                }
-            }
-        }
+       # Installer les dépendances de base
+       RUN apt-get update && \\
+           apt-get install -y --no-install-recommends \\
+               curl \\
+               wget \\
+               ca-certificates \\
+               bash \\
+               git \\
+               vim \\
+               gnupg \\
+               unzip && \\
+           apt-get clean && \\
+           rm -rf /var/lib/apt/lists/*
 
-        stage('Build Gradle') {
-            steps {
-                container('gradle') {
-                    dir("${WORK_DIR}") {
-                        script {
-                            try {
-                                sh """
-                                    ./gradlew assemble \
-                                        --parallel \
-                                        --max-workers=4 \
-                                        --project-cache-dir=${GRADLE_CACHE_PATH} \
-                                        --daemon \
-                                        --configure-on-demand \
-                                        --build-cache \
-                                        --no-scan
-                                """
-                            } catch (Exception e) {
-                                echo "Erreur Build Gradle : ${e.toString()}"
-                                currentBuild.result = 'FAILURE'
-                                throw e
-                            }
-                        }
-                    }
-                }
-            }
-        }
+       # Installer kubectl
+       RUN curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" && \\
+           chmod +x kubectl && \\
+           mv kubectl /usr/local/bin/
 
-        stage('Unit Tests') {
-            steps {
-                container('gradle') {
-                    dir("${WORK_DIR}") {
-                        script {
-                            try {
-                                sh """
-                                    ./gradlew test \
-                                        --parallel \
-                                        --max-workers=4 \
-                                        --project-cache-dir=${GRADLE_CACHE_PATH}
-                                """
-                            } catch (Exception e) {
-                                echo "Erreur Unit Tests : ${e.toString()}"
-                                currentBuild.result = 'FAILURE'
-                                throw e
-                            }
-                        }
-                    }
-                }
-            }
-        }
+       # Installer Gradle
+       RUN wget -q https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip && \\
+           unzip gradle-${GRADLE_VERSION}-bin.zip -d /opt && \\
+           rm gradle-${GRADLE_VERSION}-bin.zip && \\
+           ln -s /opt/gradle-${GRADLE_VERSION}/bin/gradle /usr/local/bin/gradle
 
-        stage('Docker Build') {
-            steps {
-                container('docker') {
-                    dir("${WORK_DIR}") {
-                        script {
-                            try {
-                                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
-                                                                  usernameVariable: 'DOCKER_USER',
-                                                                  passwordVariable: 'DOCKER_PASS')]) {
-                                    def imageName = "${DOCKER_USER}/chatsoa:${IMAGE_TAG}"
-                                    echo "Building Docker image with BuildKit and cache-from: ${imageName}"
+       # Installer Trivy
+       RUN wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | tee /usr/share/keyrings/trivy.gpg > /dev/null && \\
+           echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb bullseye main" | tee -a /etc/apt/sources.list.d/trivy.list && \\
+           apt-get update && \\
+           apt-get install -y trivy && \\
+           apt-get clean && \\
+           rm -rf /var/lib/apt/lists/*
 
-                                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                        sh """
-                                            DOCKER_BUILDKIT=1 docker build \
-                                                --cache-from=${DOCKER_USER}/chatsoa:latest \
-                                                --tag ${imageName} \
-                                                .
-                                        """
-                                    }
+       # Configurer Gradle
+       ENV GRADLE_HOME=/opt/gradle-${GRADLE_VERSION}
+       ENV PATH=${GRADLE_HOME}/bin:${PATH}
+       ENV GRADLE_USER_HOME=/home/gradle/.gradle
 
-                                    env.IMAGE_NAME = imageName
-                                    echo "Docker image built successfully: ${env.IMAGE_NAME}"
-                                }
-                            } catch (Exception e) {
-                                echo "Erreur Docker Build : ${e.toString()}"
-                                currentBuild.result = 'FAILURE'
-                                throw e
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        stage('Trivy Scan') {
-            steps {
-                container('trivy') {
-                    dir("${WORK_DIR}") {
-                        script {
-                            try {
-                                if (!env.IMAGE_NAME) {
-                                    error "IMAGE_NAME is not set. Docker build may have failed."
-                                }
+       # Créer les répertoires nécessaires
+       RUN mkdir -p /home/gradle/.gradle && \\
+           mkdir -p /home/jenkins/agent
 
-                                echo "Running security scan with Trivy on image: ${env.IMAGE_NAME}"
-                                sh """
-                                    trivy image \
-                                        --scanners vuln \
-                                        --vuln-type os \
-                                        --severity CRITICAL,HIGH \
-                                        --exit-code 1 \
-                                        --no-progress \
-                                        ${env.IMAGE_NAME}
-                                """
-                            } catch (Exception e) {
-                                echo "Erreur Trivy Scan : ${e.toString()}"
-                                currentBuild.result = 'FAILURE'
-                                throw e
-                            }
-                        }
-                    }
-                }
-            }
-        }
+       # Définir le shell par défaut
+       SHELL ["/bin/bash", "-c"]
+       WORKDIR /home/jenkins/agent
 
-        stage('Docker Push') {
-            steps {
-                container('docker') {
-                    dir("${WORK_DIR}") {
-                        script {
-                            try {
-                                if (!env.IMAGE_NAME) {
-                                    error "IMAGE_NAME is not set. Cannot push image."
-                                }
+       # Vérifier les installations
+       RUN echo "=== Vérification des outils installés ===" && \\
+           java -version && \\
+           gradle --version && \\
+           kubectl version --client && \\
+           trivy --version
 
-                                echo "Pushing Docker image: ${env.IMAGE_NAME}"
+       CMD ["sleep", "9999999"]'''
 
-                                docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                    def appImage = docker.image(env.IMAGE_NAME)
-                                    appImage.push()
-                                }
+                           // Builder et pusher l'image multi-outils
+                           docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                               def imageName = "inestmimi123/multitool:latest"
+                               def multiToolImage = docker.build(imageName, "-f Dockerfile.multitool .")
 
-                                echo "Docker image pushed successfully: ${env.IMAGE_NAME}"
-                            } catch (Exception e) {
-                                echo "Erreur Docker Push : ${e.toString()}"
-                                currentBuild.result = 'FAILURE'
-                                throw e
-                            }
-                        }
-                    }
-                }
-            }
-        }
+                               echo "🚀 Push de l'image multi-outils vers DockerHub..."
+                               multiToolImage.push()
+                               multiToolImage.push("build-${BUILD_NUMBER}")
+                               multiToolImage.push("v1.0")
 
-        stage('Restart Deploy to Kubernetes') {
-            steps {
-                container('kubectl') {
-                    script {
-                        try {
-                            if (!env.IMAGE_NAME) {
-                                echo "IMAGE_NAME not available, proceeding with restart only"
-                            } else {
-                                echo "Restarting chatsoa-deployment with image: ${env.IMAGE_NAME}"
-                            }
+                               echo "✅ Image multi-outils créée avec succès: ${imageName}"
+                               echo "📋 Contient: OpenJDK 17 + Gradle 8.5 + kubectl v1.28.4 + Trivy 0.48.1"
+                           }
 
-                            sh """
-                                kubectl rollout restart deployment/chatsoa-deployment -n soa-microservices
-                                kubectl rollout status deployment/chatsoa-deployment -n soa-microservices --timeout=120s
-                            """
-                        } catch (Exception e) {
-                            echo "Erreur Restart Deploy : ${e.toString()}"
-                            currentBuild.result = 'FAILURE'
-                            throw e
-                        }
-                    }
-                }
-            }
-        }
+                           // Nettoyer le Dockerfile temporaire
+                           sh "rm -f Dockerfile.multitool"
+
+                       } catch (Exception e) {
+                           echo "❌ Erreur Build & Push Multi-Tool Container : ${e.toString()}"
+                           currentBuild.result = 'FAILURE'
+                           throw e
+                       }
+                   }
+               }
+           }
+       }
     }
 
     post {
         success {
-            script {
-                    echo "Build completed successfully for ChatSOA"
-            }
+            echo "Build completed successfully for ChatSOA"
         }
         failure {
             echo "Build failed for ChatSOA"
