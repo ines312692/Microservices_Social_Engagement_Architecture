@@ -75,6 +75,10 @@ sonarqube {
 		property("sonar.projectKey", "ines312692_Microservices_Social_Engagement_Architecture")
 		property("sonar.organization", "ines312692")
 		property("sonar.host.url", "https://sonarcloud.io")
+		property("sonar.sources", "src/main/java")
+		property("sonar.tests", "src/test/java")
+		property("sonar.junit.reportPaths", "build/test-results/test")
+		property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
 	}
 }
 
