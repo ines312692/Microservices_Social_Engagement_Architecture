@@ -9,12 +9,12 @@ pipeline {
     }
 
     parameters {
-        string(
-            name: 'TARGET_BRANCH',
-            defaultValue: 'chore/update-chat-jenkinsfile',
-            description: 'Branche à builder'
-        )
-    }
+           string(
+               name: 'TARGET_BRANCH',
+               defaultValue: 'chore/update-chat-jenkinsfile',
+               description: 'Branche à builder'
+           )
+       }
 
     environment {
         IMAGE_NAME        = 'inestmimi123/eurekasoa:latest'
