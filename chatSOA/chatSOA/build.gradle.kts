@@ -70,9 +70,9 @@ tasks.withType<Test> {
 
 sonarqube {
 	properties {
-		property("sonar.projectKey", "chatsoa")
-		property("sonar.projectName", "chatsoa")
-		property("sonar.host.url", "http://localhost:9000")
+		property("sonar.projectKey", "ines312692_Microservices_Social_Engagement_Architecture")
+		property("sonar.organization", "ines312692")
+		property("sonar.host.url", "https://sonarcloud.io")
 		property("sonar.junit.reportPaths", "build/test-results/test")
 		property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
 	}
