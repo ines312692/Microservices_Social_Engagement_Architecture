@@ -47,7 +47,7 @@ pipeline {
                                        branches: [[name: "*/${params.TARGET_BRANCH}"]],
                                        userRemoteConfigs: [[url: "${REPO_URL}"]],
                                        extensions: [
-                                           [$class: 'CloneOption', depth: 0, noTags: true, shallow: true],
+                                           [$class: 'CloneOption', depth: 0, noTags: false, shallow: false],
                                            [$class: 'LocalBranch', localBranch: "${params.TARGET_BRANCH}"],
                                            [$class: 'CleanBeforeCheckout']
                                        ]
