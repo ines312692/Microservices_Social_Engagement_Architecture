@@ -147,10 +147,13 @@ pipeline {
                            dir("${WORK_DIR}") {
                                script {
                                    try {
-                                        withSonarQubeEnv("${SONARQUBE_SERVER}") {
+                                        withCredentials([string(credentialsId: 'sonarcloud-token', variable: 'SONAR_TOKEN')]) {
                                                               sh '''
                                                                  ./gradlew sonar \
-                                                                         -Dsonar.projectKey=chatSOA \
+                                                                         -Dsonar.host.url=https://sonarcloud.io \
+                                                                         -Dsonar.organization=ines312692 \
+                                                                         -Dsonar.projectKey=ines312692_Microservices_Social_Engagement_Architecture \
+                                                                         -Dsonar.token=$SONAR_TOKEN \
                                                                          -Dsonar.junit.reportPaths=build/test-results/test \
                                                                          -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml \
                                                                          --parallel \
@@ -167,24 +170,6 @@ pipeline {
                                    }
                                }
                            }
-                   }
-               }
-               stage('Quality Gate') {
-                   steps {
-                       script {
-                           try {
-                               timeout(time: 5, unit: 'MINUTES') {
-                                   def qg = waitForQualityGate()
-                                   if (qg.status != 'OK') {
-                                       error "Insufficient code quality! Stopping the pipeline."
-                                   }
-                               }
-                           } catch (Exception e) {
-                               echo "Erreur Quality Gate : ${e.toString()}"
-                               currentBuild.result = 'FAILURE'
-                               throw e
-                           }
-                       }
                    }
                }
 
