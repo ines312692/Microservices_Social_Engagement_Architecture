@@ -58,6 +58,8 @@ tasks.jacocoTestReport {
 		html.required.set(true)
 	}
 }
+
+
 tasks.withType<Test> {
 	useJUnitPlatform()
 
