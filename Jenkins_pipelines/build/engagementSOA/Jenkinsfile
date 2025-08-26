@@ -149,7 +149,7 @@ pipeline {
                     script {
                         try {
                             withCredentials([string(credentialsId: 'sonarcloud-token', variable: 'SONAR_TOKEN')]) {
-                                sh """
+                                sh '''
                                     ./gradlew sonar \
                                         -Dsonar.host.url=https://sonarcloud.io \
                                         -Dsonar.organization=ines312692 \
@@ -162,7 +162,7 @@ pipeline {
                                         --project-cache-dir=${GRADLE_CACHE_PATH} \
                                         --daemon \
                                         --build-cache
-                                """
+                                '''
                             }
                         } catch (Exception e) {
                             echo "Erreur SonarQube : ${e.toString()}"
@@ -253,7 +253,6 @@ pipeline {
                     try {
                         sh """
                             kubectl rollout restart deployment/engsoa-deployment -n soa-microservices
-                            kubectl rollout status deployment/engsoa-deployment -n soa-microservices --timeout=120s
                         """
                     } catch (Exception e) {
                         echo "Erreur Restart Deploy : ${e.toString()}"
