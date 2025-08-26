@@ -2,30 +2,28 @@ pipeline {
     agent {
         kubernetes {
             inheritFrom 'build-user'
-            defaultContainer 'kubectl'
+            defaultContainer 'multitool'
             namespace 'soa-microservices'
-            serviceAccount 'usersoa-deployer'
+            serviceAccount 'chatsoa-deployer'
         }
     }
 
     parameters {
         string(
             name: 'TARGET_BRANCH',
-            defaultValue: 'feature/otimising_jenkins_build_performance',
+            defaultValue: 'chore/update-chat-jenkinsfile',
             description: 'Branche à builder'
         )
     }
 
     environment {
-        IMAGE_TAG         = 'latest'
-        DOCKERHUB_USERNAME = 'inestmimi123'
-        DOCKERHUB_IMAGE   = 'k-usersoa'
+        IMAGE_NAME        = 'inestmimi123/usersoa:latest'
         DOCKER_BUILDKIT   = '1'
         GRADLE_CACHE_PATH = '/mnt/gradle_cache'
         GRADLE_USER_HOME  = "${GRADLE_CACHE_PATH}"
         REPO_URL          = 'https://github.com/ines312692/Microservices_Social_Engagement_Architecture.git'
-        WORK_DIR          = "${WORKSPACE}/UserSOA/UserSOA"
         SONARQUBE_SERVER  = 'sonarqube-local'
+        WORK_DIR          = "${WORKSPACE}/UserSOA/UserSOA"
     }
 
     options {
@@ -49,7 +47,7 @@ pipeline {
                                 branches: [[name: "*/${params.TARGET_BRANCH}"]],
                                 userRemoteConfigs: [[url: "${REPO_URL}"]],
                                 extensions: [
-                                    [$class: 'CloneOption', depth: 1, noTags: true, shallow: true],
+                                    [$class: 'CloneOption', depth: 0, noTags: false, shallow: false],
                                     [$class: 'LocalBranch', localBranch: "${params.TARGET_BRANCH}"],
                                     [$class: 'CleanBeforeCheckout']
                                 ]
@@ -57,7 +55,8 @@ pipeline {
                         }
                     } catch (Exception e) {
                         echo "Erreur Checkout : ${e.toString()}"
-                        error("Échec du checkout Git")
+                        currentBuild.result = 'FAILURE'
+                        throw e
                     }
                 }
             }
@@ -65,16 +64,16 @@ pipeline {
 
         stage('Préparer Cache') {
             steps {
-                container('gradle') {
-                    dir("${WORK_DIR}") {
-                        script {
-                            try {
-                                sh "chmod +x ./gradlew"
-                                sh "[ -d ${GRADLE_CACHE_PATH} ] || mkdir -p ${GRADLE_CACHE_PATH}"
-                            } catch (Exception e) {
-                                echo "Erreur préparation cache : ${e.toString()}"
-                                error("Échec préparation cache Gradle")
-                            }
+                dir("${WORK_DIR}") {
+                    script {
+                        try {
+                            sh "chmod +x ./gradlew"
+                            sh "[ -d ${GRADLE_CACHE_PATH} ] || mkdir -p ${GRADLE_CACHE_PATH}"
+                            sh "gradle --version"
+                        } catch (Exception e) {
+                            echo "Erreur préparation cache : ${e.toString()}"
+                            currentBuild.result = 'FAILURE'
+                            throw e
                         }
                     }
                 }
@@ -83,15 +82,13 @@ pipeline {
 
         stage('Prewarm Gradle Daemon') {
             steps {
-                container('gradle') {
-                    dir("${WORK_DIR}") {
-                        script {
-                            try {
-                                echo "Prewarming Gradle daemon..."
-                                sh "./gradlew --daemon help || true"
-                            } catch (Exception e) {
-                                echo "Erreur Prewarm Gradle : ${e.toString()}"
-                            }
+                dir("${WORK_DIR}") {
+                    script {
+                        try {
+                            echo "Prewarming Gradle daemon..."
+                            sh "./gradlew --daemon help || true"
+                        } catch (Exception e) {
+                            echo "Erreur Prewarm Gradle : ${e.toString()}"
                         }
                     }
                 }
@@ -100,24 +97,23 @@ pipeline {
 
         stage('Build Gradle') {
             steps {
-                container('gradle') {
-                    dir("${WORK_DIR}") {
-                        script {
-                            try {
-                                sh """
-                                    ./gradlew assemble \
-                                        --parallel \
-                                        --max-workers=4 \
-                                        --project-cache-dir=${GRADLE_CACHE_PATH} \
-                                        --daemon \
-                                        --configure-on-demand \
-                                        --build-cache \
-                                        --no-scan
-                                """
-                            } catch (Exception e) {
-                                echo "Erreur Build Gradle : ${e.toString()}"
-                                error("Échec compilation Gradle")
-                            }
+                dir("${WORK_DIR}") {
+                    script {
+                        try {
+                            sh """
+                                ./gradlew assemble \
+                                    --parallel \
+                                    --max-workers=4 \
+                                    --project-cache-dir=${GRADLE_CACHE_PATH} \
+                                    --daemon \
+                                    --configure-on-demand \
+                                    --build-cache \
+                                    --no-scan
+                            """
+                        } catch (Exception e) {
+                            echo "Erreur Build Gradle : ${e.toString()}"
+                            currentBuild.result = 'FAILURE'
+                            throw e
                         }
                     }
                 }
@@ -126,20 +122,52 @@ pipeline {
 
         stage('Unit Tests') {
             steps {
-                container('gradle') {
-                    dir("${WORK_DIR}") {
-                        script {
-                            try {
-                                sh """
-                                    ./gradlew test \
+                dir("${WORK_DIR}") {
+                    script {
+                        try {
+                            sh """
+                                ./gradlew test jacocoTestReport \
+                                    --parallel \
+                                    --max-workers=4 \
+                                    --project-cache-dir=${GRADLE_CACHE_PATH} \
+                                    --daemon \
+                                    --build-cache
+                            """
+                        } catch (Exception e) {
+                            echo "Erreur Unit Tests : ${e.toString()}"
+                            currentBuild.result = 'FAILURE'
+                            throw e
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                dir("${WORK_DIR}") {
+                    script {
+                        try {
+                            withCredentials([string(credentialsId: 'sonarcloud-token', variable: 'SONAR_TOKEN')]) {
+                                sh '''
+                                    ./gradlew sonar \
+                                        -Dsonar.host.url=https://sonarcloud.io \
+                                        -Dsonar.organization=ines312692 \
+                                        -Dsonar.projectKey=ines312692_Microservices_Social_Engagement_Architecture \
+                                        -Dsonar.token=$SONAR_TOKEN \
+                                        -Dsonar.junit.reportPaths=build/test-results/test \
+                                        -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml \
                                         --parallel \
                                         --max-workers=4 \
-                                        --project-cache-dir=${GRADLE_CACHE_PATH}
-                                """
-                            } catch (Exception e) {
-                                echo "Erreur Unit Tests : ${e.toString()}"
-                                error("Échec tests unitaires")
+                                        --project-cache-dir=${GRADLE_CACHE_PATH} \
+                                        --daemon \
+                                        --build-cache
+                                '''
                             }
+                        } catch (Exception e) {
+                            echo "Erreur SonarQube : ${e.toString()}"
+                            currentBuild.result = 'FAILURE'
+                            throw e
                         }
                     }
                 }
@@ -152,27 +180,19 @@ pipeline {
                     dir("${WORK_DIR}") {
                         script {
                             try {
-                                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
-                                                                  usernameVariable: 'DOCKER_USER',
-                                                                  passwordVariable: 'DOCKER_PASS')]) {
-                                    def imageName = "${DOCKER_USER}/usersoa:${IMAGE_TAG}"
-                                    echo "Building Docker image with BuildKit and cache-from: ${imageName}"
-
-                                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                        sh """
-                                            DOCKER_BUILDKIT=1 docker build \
-                                                --cache-from=${DOCKER_USER}/usersoa:latest \
-                                                --tag ${imageName} \
-                                                .
-                                        """
-                                    }
-
-                                    env.IMAGE_NAME = imageName
-                                    echo "Docker image built successfully: ${env.IMAGE_NAME}"
+                                docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                                    sh """
+                                        DOCKER_BUILDKIT=1 docker build \
+                                            --cache-from=${env.IMAGE_NAME} \
+                                            --tag ${env.IMAGE_NAME} \
+                                            .
+                                    """
                                 }
+                                echo "Docker image built successfully: ${env.IMAGE_NAME}"
                             } catch (Exception e) {
                                 echo "Erreur Docker Build : ${e.toString()}"
-                                error("Échec construction image Docker")
+                                currentBuild.result = 'FAILURE'
+                                throw e
                             }
                         }
                     }
@@ -182,27 +202,23 @@ pipeline {
 
         stage('Trivy Scan') {
             steps {
-                container('trivy') {
-                    dir("${WORK_DIR}") {
-                        script {
-                            try {
-                                if (!env.IMAGE_NAME) {
-                                    error "IMAGE_NAME is not set. Docker build may have failed."
-                                }
-                                echo "Running security scan with Trivy on image: ${env.IMAGE_NAME}"
-                                sh """
-                                    trivy image \
-                                        --scanners vuln \
-                                        --vuln-type os \
-                                        --severity CRITICAL,HIGH \
-                                        --exit-code 1 \
-                                        --no-progress \
-                                        ${env.IMAGE_NAME}
-                                """
-                            } catch (Exception e) {
-                                echo "Erreur Trivy Scan : ${e.toString()}"
-                                error("Échec scan sécurité Trivy")
-                            }
+                dir("${WORK_DIR}") {
+                    script {
+                        try {
+                            echo "Running security scan with Trivy on image: ${env.IMAGE_NAME}"
+                            sh """
+                                trivy image \
+                                    --scanners vuln \
+                                    --vuln-type os \
+                                    --severity CRITICAL,HIGH \
+                                    --exit-code 1 \
+                                    --no-progress \
+                                    ${env.IMAGE_NAME}
+                            """
+                        } catch (Exception e) {
+                            echo "Erreur Trivy Scan : ${e.toString()}"
+                            currentBuild.result = 'FAILURE'
+                            throw e
                         }
                     }
                 }
@@ -215,21 +231,15 @@ pipeline {
                     dir("${WORK_DIR}") {
                         script {
                             try {
-                                if (!env.IMAGE_NAME) {
-                                    error "IMAGE_NAME is not set. Cannot push image."
-                                }
-
                                 echo "Pushing Docker image: ${env.IMAGE_NAME}"
-
                                 docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                    def appImage = docker.image(env.IMAGE_NAME)
-                                    appImage.push()
+                                    docker.image(env.IMAGE_NAME).push()
                                 }
-
                                 echo "Docker image pushed successfully: ${env.IMAGE_NAME}"
                             } catch (Exception e) {
                                 echo "Erreur Docker Push : ${e.toString()}"
-                                error("Échec push image Docker")
+                                currentBuild.result = 'FAILURE'
+                                throw e
                             }
                         }
                     }
@@ -239,18 +249,15 @@ pipeline {
 
         stage('Restart Deploy to Kubernetes') {
             steps {
-                container('kubectl') {
-                    script {
-                        try {
-                            echo "Restarting usersoa-deployment with image: ${env.IMAGE_NAME}"
-                            sh """
-                                kubectl rollout restart deployment/usersoa-deployment -n soa-microservices
-                                kubectl rollout status deployment/usersoa-deployment -n soa-microservices --timeout=120s
-                            """
-                        } catch (Exception e) {
-                            echo "Erreur Restart Deploy : ${e.toString()}"
-                            error("Échec redéploiement Kubernetes")
-                        }
+                script {
+                    try {
+                        sh """
+                            kubectl rollout restart deployment/usersoa-deployment -n soa-microservices
+                        """
+                    } catch (Exception e) {
+                        echo "Erreur Restart Deploy : ${e.toString()}"
+                        currentBuild.result = 'FAILURE'
+                        throw e
                     }
                 }
             }
