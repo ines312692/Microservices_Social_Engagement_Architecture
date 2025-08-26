@@ -3,6 +3,7 @@ plugins {
 	id("org.springframework.boot") version "3.4.5"
 	id("io.spring.dependency-management") version "1.1.7"
 	id("org.sonarqube") version "4.3.0.3225"
+	jacoco
 
 }
 
@@ -44,7 +45,19 @@ dependencyManagement {
 		mavenBom("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}")
 	}
 }
+tasks.test {
+	useJUnitPlatform()
+	finalizedBy(tasks.jacocoTestReport)
+}
 
+tasks.jacocoTestReport {
+	dependsOn(tasks.test)
+	reports {
+		xml.required.set(true)
+		xml.outputLocation.set(file("${buildDir}/reports/jacoco/test/jacocoTestReport.xml"))
+		html.required.set(true)
+	}
+}
 tasks.withType<Test> {
 	useJUnitPlatform()
 
@@ -60,6 +73,8 @@ sonarqube {
 		property("sonar.projectKey", "chatsoa")
 		property("sonar.projectName", "chatsoa")
 		property("sonar.host.url", "http://localhost:9000")
+		property("sonar.junit.reportPaths", "build/test-results/test")
+		property("sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacoco/test/jacocoTestReport.xml")
 	}
 }
 
