@@ -11,7 +11,7 @@ pipeline {
     parameters {
         string(
             name: 'TARGET_BRANCH',
-            defaultValue: 'chore/update-soa-jenkinsfile',
+            defaultValue: 'chore/update-chat-jenkinsfile',
             description: 'Branche à builder'
         )
     }
