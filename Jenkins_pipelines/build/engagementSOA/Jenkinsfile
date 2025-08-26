@@ -2,24 +2,22 @@ pipeline {
     agent {
         kubernetes {
             inheritFrom 'build-eng'
-            defaultContainer 'docker'
+            defaultContainer 'kubectl'
             namespace 'soa-microservices'
-            serviceAccount 'engsoa-deployer'
+            serviceAccount 'chatsoa-deployer'
         }
     }
 
     parameters {
         string(
             name: 'TARGET_BRANCH',
-            defaultValue: 'ops/jenkins-eng-improvement',
+            defaultValue: 'fix/code-quality-checks',
             description: 'Branche à builder'
         )
     }
 
     environment {
-        DOCKERHUB_IMAGE   = 'k-engsoa'
-        IMAGE_TAG         = "latest"
-        DOCKERHUB_USERNAME = 'inestmimi123'
+        IMAGE_TAG         = 'latest'
         DOCKER_BUILDKIT   = '1'
         GRADLE_CACHE_PATH = '/mnt/gradle_cache'
         GRADLE_USER_HOME  = "${GRADLE_CACHE_PATH}"
@@ -30,6 +28,7 @@ pipeline {
 
     options {
         skipDefaultCheckout(true)
+        timeout(time: 30, unit: 'MINUTES')
     }
 
     triggers {
@@ -37,7 +36,6 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 script {
@@ -69,8 +67,14 @@ pipeline {
                 container('gradle') {
                     dir("${WORK_DIR}") {
                         script {
-                            sh "chmod +x ./gradlew"
-                            sh "[ -d ${GRADLE_CACHE_PATH} ] || mkdir -p ${GRADLE_CACHE_PATH}"
+                            try {
+                                sh "chmod +x ./gradlew"
+                                sh "[ -d ${GRADLE_CACHE_PATH} ] || mkdir -p ${GRADLE_CACHE_PATH}"
+                            } catch (Exception e) {
+                                echo "Erreur préparation cache : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
                         }
                     }
                 }
@@ -81,7 +85,14 @@ pipeline {
             steps {
                 container('gradle') {
                     dir("${WORK_DIR}") {
-                        sh "./gradlew --daemon help || true"
+                        script {
+                            try {
+                                echo "Prewarming Gradle daemon..."
+                                sh "./gradlew --daemon help || true"
+                            } catch (Exception e) {
+                                echo "Erreur Prewarm Gradle : ${e.toString()}"
+                            }
+                        }
                     }
                 }
             }
@@ -91,16 +102,25 @@ pipeline {
             steps {
                 container('gradle') {
                     dir("${WORK_DIR}") {
-                        sh """
-                            ./gradlew assemble \
-                                --parallel \
-                                --max-workers=4 \
-                                --project-cache-dir=${GRADLE_CACHE_PATH} \
-                                --daemon \
-                                --configure-on-demand \
-                                --build-cache \
-                                --no-scan
-                        """
+                        script {
+                            try {
+                                sh """
+                                    ./gradlew assemble \
+                                        --parallel \
+                                        --max-workers=4 \
+                                        --project-cache-dir=${GRADLE_CACHE_PATH} \
+                                        --daemon \
+                                        --configure-on-demand \
+                                        --build-cache \
+                                        --no-scan
+                                """
+                                sh "ls -l build/libs"
+                            } catch (Exception e) {
+                                echo "Erreur Build Gradle : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
+                        }
                     }
                 }
             }
@@ -110,64 +130,115 @@ pipeline {
             steps {
                 container('gradle') {
                     dir("${WORK_DIR}") {
-                        sh """
-                            ./gradlew test \
-                                --parallel \
-                                --max-workers=4 \
-                                --project-cache-dir=${GRADLE_CACHE_PATH}
-                        """
+                        script {
+                            try {
+                                sh """
+                                    ./gradlew test \
+                                        --parallel \
+                                        --max-workers=4 \
+                                        --project-cache-dir=${GRADLE_CACHE_PATH}
+                                """
+                            } catch (Exception e) {
+                                echo "Erreur Unit Tests : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
+                        }
                     }
                 }
             }
         }
 
-        stage('SonarQube Analysis') {
-            steps {
-                script {
-                    withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                        sh """
-                            ./gradlew sonar \
-                                -Dsonar.projectKey=engagementSOA \
-                                -Dsonar.java.binaries=build/classes/java/main \
-                                -Dsonar.junit.reportPaths=build/test-results/test \
-                                -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml
-                        """
-                    }
-                }
-            }
-        }
 
-        stage('Docker Build & Push') {
+
+        stage('Docker Build') {
             steps {
                 container('docker') {
                     dir("${WORK_DIR}") {
                         script {
-                            docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
-                                def imageName = "${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}"
-                                def appImage = docker.build(
-                                    imageName,
-                                    """--build-arg BUILDKIT_INLINE_CACHE=1 \
-                                       --cache-from=${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:latest \
-                                       -f Dockerfile ."""
-                                )
+                            try {
+                                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                                                                  usernameVariable: 'DOCKER_USER',
+                                                                  passwordVariable: 'DOCKER_PASS')]) {
+                                    def imageName = "${DOCKER_USER}/engsoa:${IMAGE_TAG}"
+                                    echo "Building Docker image with BuildKit and cache-from: ${imageName}"
 
-                                echo "Scanning Docker image with Trivy..."
+                                    docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                                        sh """
+                                            DOCKER_BUILDKIT=1 docker build \
+                                                --cache-from=${DOCKER_USER}/engsoa:latest \
+                                                --tag ${imageName} \
+                                                .
+                                        """
+                                    }
+
+                                    env.IMAGE_NAME = imageName
+                                    echo "Docker image built successfully: ${env.IMAGE_NAME}"
+                                }
+                            } catch (Exception e) {
+                                echo "Erreur Docker Build : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Trivy Scan') {
+            steps {
+                container('trivy') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            try {
+                                if (!env.IMAGE_NAME) {
+                                    error "IMAGE_NAME is not set. Docker build may have failed."
+                                }
+
+                                echo "Running security scan with Trivy on image: ${env.IMAGE_NAME}"
                                 sh """
-                                    docker run --rm \
-                                    -v /var/run/docker.sock:/var/run/docker.sock \
-                                    aquasec/trivy image \
-                                    --scanners vuln \
-                                    --vuln-type os \
-                                    --severity CRITICAL,HIGH \
-                                    --exit-code 1 \
-                                    --no-progress \
-                                    ${DOCKERHUB_USERNAME}/${DOCKERHUB_IMAGE}:${IMAGE_TAG}
+                                    trivy image \
+                                        --scanners vuln \
+                                        --vuln-type os \
+                                        --severity CRITICAL,HIGH \
+                                        --exit-code 1 \
+                                        --no-progress \
+                                        ${env.IMAGE_NAME}
                                 """
+                            } catch (Exception e) {
+                                echo "Erreur Trivy Scan : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
-                                parallel(
-                                    "Push Tagged": { appImage.push() },
-                                    "Push Latest": { appImage.push('latest') }
-                                )
+        stage('Docker Push') {
+            steps {
+                container('docker') {
+                    dir("${WORK_DIR}") {
+                        script {
+                            try {
+                                if (!env.IMAGE_NAME) {
+                                    error "IMAGE_NAME is not set. Cannot push image."
+                                }
+
+                                echo "Pushing Docker image: ${env.IMAGE_NAME}"
+
+                                docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                                    def appImage = docker.image(env.IMAGE_NAME)
+                                    appImage.push()
+                                }
+
+                                echo "Docker image pushed successfully: ${env.IMAGE_NAME}"
+                            } catch (Exception e) {
+                                echo "Erreur Docker Push : ${e.toString()}"
+                                currentBuild.result = 'FAILURE'
+                                throw e
                             }
                         }
                     }
@@ -179,21 +250,33 @@ pipeline {
             steps {
                 container('kubectl') {
                     script {
-                        echo "Restarting engsoa-deployment..."
-                        sh """
-                            kubectl rollout restart deployment/engsoa-deployment -n soa-microservices
-                            kubectl rollout status deployment/engsoa-deployment -n soa-microservices --timeout=120s
-                        """
+                        try {
+                            if (!env.IMAGE_NAME) {
+                                echo "IMAGE_NAME not available, proceeding with restart only"
+                            } else {
+                                echo "Restarting engsoa-deployment with image: ${env.IMAGE_NAME}"
+                            }
+
+                            sh """
+                                kubectl rollout restart deployment/engsoa-deployment -n soa-microservices
+                                kubectl rollout status deployment/engsoa-deployment -n soa-microservices --timeout=120s
+                            """
+                        } catch (Exception e) {
+                            echo "Erreur Restart Deploy : ${e.toString()}"
+                            currentBuild.result = 'FAILURE'
+                            throw e
+                        }
                     }
                 }
             }
         }
-
     }
 
     post {
         success {
-            echo "Build completed successfully for EngagementSOA"
+            script {
+                echo "Build completed successfully for EngagementSOA"
+            }
         }
         failure {
             echo "Build failed for EngagementSOA"

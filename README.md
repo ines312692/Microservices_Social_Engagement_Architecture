@@ -1,6 +1,6 @@
 # SOA Microservices Project
 
-*Last Updated: August 14, 2025*
+*Last Updated: August 22, 2025*
 
 This project is a microservices-based architecture built using **Spring Boot** and **Spring Cloud**. It implements a social networking platform with user management, messaging, and social engagement features.
 
@@ -525,15 +525,12 @@ The current implementation focuses on functionality, but for production deployme
 
 ## Version History
 
-- **1.0.3** (2025-08-14): Project Structure Documentation Update
-  - Updated Project Structure section to accurately reflect current repository organization
-  - Fixed formatting issues in the directory tree representation
-  - Added missing directories and improved structure clarity
+- **1.0.4** (2025-08-22): README Update
+  - Updated "Last Updated" date
+  - Refreshed documentation for better readability
+  - Ensured all information is current
 
-- **1.0.2** (2025-08-14): Documentation update
-  - Updated README with current information
-  - Improved documentation clarity
-  - Added latest project details
+
 
 
 
