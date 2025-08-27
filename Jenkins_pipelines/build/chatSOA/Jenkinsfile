@@ -69,7 +69,6 @@ pipeline {
                                try {
                                    sh "chmod +x ./gradlew"
                                    sh "[ -d ${GRADLE_CACHE_PATH} ] || mkdir -p ${GRADLE_CACHE_PATH}"
-                                   sh "gradle --version"  // Vérifier que Gradle fonctionne
                                } catch (Exception e) {
                                    echo "Erreur préparation cache : ${e.toString()}"
                                    currentBuild.result = 'FAILURE'
