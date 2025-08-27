@@ -12,7 +12,7 @@ pipeline {
     RELEASE_NAME = 'chatsoa'
     CHART_PATH = 'helm_charts/chat-soa'
     NAMESPACE = 'soa-microservices'
-    IMAGE_TAG = "${BUILD_NUMBER}-${GIT_COMMIT.take(7)}"
+    IMAGE_TAG = "latest"
     DOCKERHUB_USERNAME = 'inestmimi123'
     IMAGE_NAME = 'k-chatsoa'
   }
